@@ -1,0 +1,44 @@
+# Zakura's forked cryptography dependencies.
+#
+# Each member is a fork of the exact crates.io release that Zakura resolves,
+# vendored as plain workspace members (no submodules). Zakura consumes them via
+# `[patch.crates-io]` entries in its root Cargo.toml, which replace the
+# registry versions across its entire dependency graph.
+#
+# Members:
+# - pasta_curves, halo2_proofs, halo2_gadgets, halo2_poseidon,
+#   halo2_legacy_pdqsort, orchard: the Orchard/halo2 proving stack.
+# - zcash_primitives, zcash_keys: the librustzcash members Zakura consumes
+#   that depend on the crates above (zcash_primitives has a hard `orchard`
+#   dependency; zcash_keys' `orchard` feature is enabled in Zakura's
+#   resolution).
+#
+# Keep each crate's `version` in its own Cargo.toml semver-compatible with the
+# version Zakura's dependents request, or the `[patch]` entries stop applying.
+
+[workspace]
+resolver = "2"
+members = [
+    "halo2_gadgets",
+    "halo2_legacy_pdqsort",
+    "halo2_poseidon",
+    "halo2_proofs",
+    "orchard",
+    "pasta_curves",
+    "zcash_keys",
+    "zcash_primitives",
+]
+
+# Make the members consume each other instead of the registry copies, so that
+# (for example) zcash_primitives here builds against the forked orchard, not
+# crates.io's latest 0.15.x. Zakura carries the same patch set in its own
+# root Cargo.toml.
+[patch.crates-io]
+halo2_gadgets = { path = "halo2_gadgets" }
+halo2_legacy_pdqsort = { path = "halo2_legacy_pdqsort" }
+halo2_poseidon = { path = "halo2_poseidon" }
+halo2_proofs = { path = "halo2_proofs" }
+orchard = { path = "orchard" }
+pasta_curves = { path = "pasta_curves" }
+zcash_keys = { path = "zcash_keys" }
+zcash_primitives = { path = "zcash_primitives" }
