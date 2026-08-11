@@ -140,6 +140,7 @@ version = "0.11"
 default-features = false
 
 [dependencies.orchard]
+path = "../orchard"
 version = "0.15.0"
 default-features = false
 
@@ -152,10 +153,12 @@ version = "0.6"
 default-features = false
 
 [dependencies.redjubjub]
+path = "../redjubjub"
 version = "0.8"
 default-features = false
 
 [dependencies.sapling]
+path = "../sapling-crypto"
 version = "0.7"
 default-features = false
 package = "sapling-crypto"
@@ -212,6 +215,7 @@ features = [
 default-features = false
 
 [dev-dependencies.orchard]
+path = "../orchard"
 version = "0.15.0"
 features = ["test-dependencies"]
 default-features = false
@@ -223,6 +227,7 @@ version = ">=1,<1.7"
 version = "0.3"
 
 [dev-dependencies.sapling]
+path = "../sapling-crypto"
 version = "0.7"
 features = ["test-dependencies"]
 default-features = false
