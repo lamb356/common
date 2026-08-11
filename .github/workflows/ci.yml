@@ -1,19 +1,20 @@
 name: CI
 
-# The suites below are adapted from the primary CI workflow on each upstream
-# repository's main branch, as inspected on 2026-08-11. Book jobs are omitted.
-# Cargo commands are package-scoped because this repository combines several
-# otherwise-independent upstream workspaces.
-#
-# The historical MSRV Cargo versions used by halo2, pasta_curves, and reddsa
-# cannot parse newer members of this combined workspace. Their jobs therefore
-# use stable here; see the repository-model caveats in the change summary.
+# The test and cross-target suites below are adapted from each upstream
+# repository's primary CI workflow, as inspected on 2026-08-11. Book and API
+# documentation jobs are omitted. Shared lint, formatting, and MSRV checks use
+# the same policy as zakura-core/zakura.
 
 on:
   pull_request:
     branches:
       - main
     paths:
+      - .cargo/**
+      - .github/workflows/ci.yml
+      - .github/workflows/maintenance.yml
+      - Cargo.lock
+      - Cargo.toml
       - halo2_gadgets/**
       - halo2_legacy_pdqsort/**
       - halo2_poseidon/**
@@ -27,6 +28,7 @@ on:
       - zcash_keys/**
       - zcash_primitives/**
       - zcash_proofs/**
+      - rust-toolchain.toml
 
 permissions:
   contents: read
@@ -44,12 +46,15 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       halo2: ${{ steps.filter.outputs.halo2 }}
+      halo2_legacy_pdqsort: ${{ steps.filter.outputs.halo2_legacy_pdqsort }}
       orchard: ${{ steps.filter.outputs.orchard }}
       pasta_curves: ${{ steps.filter.outputs.pasta_curves }}
       reddsa: ${{ steps.filter.outputs.reddsa }}
       redjubjub: ${{ steps.filter.outputs.redjubjub }}
       sapling_crypto: ${{ steps.filter.outputs.sapling_crypto }}
+      sinsemilla: ${{ steps.filter.outputs.sinsemilla }}
       librustzcash: ${{ steps.filter.outputs.librustzcash }}
+      matrix: ${{ steps.filter.outputs.matrix }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -63,17 +68,23 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           halo2=false
+          halo2_legacy_pdqsort=false
           orchard=false
           pasta_curves=false
           reddsa=false
           redjubjub=false
           sapling_crypto=false
+          sinsemilla=false
           librustzcash=false
+          shared=false
 
           while IFS= read -r path; do
             case "$path" in
               halo2_gadgets/*|halo2_poseidon/*|halo2_proofs/*)
                 halo2=true
+                ;;
+              halo2_legacy_pdqsort/*)
+                halo2_legacy_pdqsort=true
                 ;;
               orchard/*)
                 orchard=true
@@ -90,26 +101,180 @@ jobs:
               sapling-crypto/*)
                 sapling_crypto=true
                 ;;
+              sinsemilla/*)
+                sinsemilla=true
+                ;;
               zcash_keys/*|zcash_primitives/*|zcash_proofs/*)
                 librustzcash=true
+                ;;
+              Cargo.toml|Cargo.lock|rust-toolchain.toml|.cargo/*|.github/workflows/ci.yml|.github/workflows/maintenance.yml)
+                shared=true
                 ;;
             esac
           done < <(git diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA")
 
+          if [[ "$shared" == true ]]; then
+            halo2=true
+            halo2_legacy_pdqsort=true
+            orchard=true
+            pasta_curves=true
+            reddsa=true
+            redjubjub=true
+            sapling_crypto=true
+            sinsemilla=true
+            librustzcash=true
+          fi
+
+          matrix='[]'
+          add_group() {
+            matrix=$(jq -c \
+              --arg upstream "$1" \
+              --arg packages "$2" \
+              --argjson has_upstream_ci "$3" \
+              --argjson deny_warnings "$4" \
+              '. + [{upstream: $upstream, packages: $packages, has_upstream_ci: $has_upstream_ci, deny_warnings: $deny_warnings}]' \
+              <<< "$matrix")
+          }
+
+          [[ "$halo2" == true ]] && \
+            add_group halo2 "halo2_gadgets halo2_poseidon halo2_proofs" true false
+          [[ "$halo2_legacy_pdqsort" == true ]] && \
+            add_group halo2_legacy_pdqsort halo2_legacy_pdqsort false false
+          [[ "$orchard" == true ]] && add_group orchard orchard true true
+          [[ "$pasta_curves" == true ]] && \
+            add_group pasta_curves pasta_curves true false
+          [[ "$reddsa" == true ]] && add_group reddsa reddsa true false
+          [[ "$redjubjub" == true ]] && add_group redjubjub redjubjub true false
+          [[ "$sapling_crypto" == true ]] && \
+            add_group sapling-crypto sapling-crypto true true
+          [[ "$sinsemilla" == true ]] && add_group sinsemilla sinsemilla false false
+          [[ "$librustzcash" == true ]] && \
+            add_group librustzcash "zcash_keys zcash_primitives zcash_proofs" true true
+
           {
             echo "halo2=$halo2"
+            echo "halo2_legacy_pdqsort=$halo2_legacy_pdqsort"
             echo "orchard=$orchard"
             echo "pasta_curves=$pasta_curves"
             echo "reddsa=$reddsa"
             echo "redjubjub=$redjubjub"
             echo "sapling_crypto=$sapling_crypto"
+            echo "sinsemilla=$sinsemilla"
             echo "librustzcash=$librustzcash"
+            echo "matrix=$matrix"
           } >> "$GITHUB_OUTPUT"
+
+  rust-checks:
+    name: ${{ matrix.upstream }} / Stable Rust checks
+    needs: changes
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.changes.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
+        with:
+          components: clippy
+          toolchain: stable
+      - name: Check locked all-feature build
+        shell: bash
+        env:
+          PACKAGES: ${{ matrix.packages }}
+        run: |
+          package_args=()
+          for package in $PACKAGES; do
+            package_args+=(--package "$package")
+          done
+          cargo +stable check --locked --all-features --all-targets "${package_args[@]}"
+      - name: Run Clippy
+        shell: bash
+        env:
+          DENY_WARNINGS: ${{ matrix.deny_warnings }}
+          PACKAGES: ${{ matrix.packages }}
+        run: |
+          package_args=()
+          lint_args=()
+          for package in $PACKAGES; do
+            package_args+=(--package "$package")
+          done
+          if [[ "$DENY_WARNINGS" == true ]]; then
+            lint_args+=(-- -D warnings)
+          fi
+          cargo +stable clippy --locked --all-features --all-targets \
+            --no-deps "${package_args[@]}" "${lint_args[@]}"
+      - name: Test crates without upstream CI
+        if: ${{ !matrix.has_upstream_ci }}
+        shell: bash
+        env:
+          PACKAGES: ${{ matrix.packages }}
+        run: |
+          package_args=()
+          for package in $PACKAGES; do
+            package_args+=(--package "$package")
+          done
+          cargo +stable test --locked "${package_args[@]}"
+
+  msrv:
+    name: ${{ matrix.upstream }} / MSRV
+    needs: changes
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.changes.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
+        with:
+          toolchain: 1.88
+      - name: Check on Rust 1.88
+        shell: bash
+        env:
+          PACKAGES: ${{ matrix.packages }}
+        run: |
+          package_args=()
+          for package in $PACKAGES; do
+            package_args+=(--package "$package")
+          done
+          cargo +1.88 check --locked "${package_args[@]}"
+
+  formatting:
+    name: ${{ matrix.upstream }} / Formatting
+    needs: changes
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.changes.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
+        with:
+          components: rustfmt
+          toolchain: nightly
+      - name: Check formatting
+        shell: bash
+        env:
+          PACKAGES: ${{ matrix.packages }}
+        run: |
+          package_args=()
+          for package in $PACKAGES; do
+            package_args+=(--package "$package")
+          done
+          cargo +nightly fmt "${package_args[@]}" -- --check
 
   # zcash/halo2 .github/workflows/ci.yml @
   # 723a90bc598d986bdf59941a8011c60a0819d6b9
   halo2-test:
-    name: halo2 / Test on ${{ matrix.os }} (${{ matrix.stage }})
+    name: halo2 / Test on ${{ matrix.os }}${{ matrix.name_suffix }}
     needs: changes
     if: needs.changes.outputs.halo2 == 'true'
     runs-on: ${{ matrix.os }}
@@ -121,10 +286,13 @@ jobs:
         include:
           - stage: stable
             features: ""
+            name_suffix: ""
           - stage: beta
             features: beta
+            name_suffix: " with beta features"
           - stage: nightly
             features: nightly
+            name_suffix: " with nightly features"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -139,7 +307,7 @@ jobs:
           if [[ -n "$STAGE_FEATURE" ]]; then
             features="$features,$STAGE_FEATURE"
           fi
-          cargo test --verbose --release \
+          cargo +stable test --verbose --release \
             -p halo2_gadgets \
             -p halo2_poseidon \
             -p halo2_proofs \
@@ -149,7 +317,7 @@ jobs:
         run: git diff --exit-code
 
   halo2-test-32-bit:
-    name: halo2 / Test i686 (${{ matrix.stage }})
+    name: halo2 / Test i686${{ matrix.name_suffix }}
     needs: changes
     if: needs.changes.outputs.halo2 == 'true'
     runs-on: ubuntu-latest
@@ -157,11 +325,18 @@ jobs:
       fail-fast: false
       matrix:
         stage: [stable, beta, nightly]
+        include:
+          - stage: stable
+            name_suffix: ""
+          - stage: beta
+            name_suffix: " with beta features"
+          - stage: nightly
+            name_suffix: " with nightly features"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.88
         with:
           targets: i686-unknown-linux-gnu
       - name: Install cross-platform support dependencies
@@ -175,7 +350,7 @@ jobs:
           if [[ "$STAGE" != stable ]]; then
             features="$features,$STAGE"
           fi
-          cargo test --verbose --release \
+          cargo +1.88 test --verbose --release \
             -p halo2_gadgets \
             -p halo2_poseidon \
             -p halo2_proofs \
@@ -189,6 +364,7 @@ jobs:
     if: needs.changes.outputs.halo2 == 'true'
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         target:
           - wasm32-unknown-unknown
@@ -197,81 +373,18 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.88
         with:
           targets: ${{ matrix.target }}
       - name: Build target
         run: >-
-          cargo build
+          cargo +1.88 build
           -p halo2_gadgets
           -p halo2_poseidon
           -p halo2_proofs
           --target ${{ matrix.target }}
           --no-default-features
           --features batch,dev-graph,gadget-traces,nightly
-
-  halo2-checks:
-    name: halo2 / Bitrot, docs, and formatting
-    needs: changes
-    if: needs.changes.outputs.halo2 == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Install documentation dependencies
-        run: sudo apt-get -y install libfontconfig1-dev
-      - name: Build benchmarks and examples
-        run: >-
-          cargo build
-          -p halo2_gadgets
-          -p halo2_poseidon
-          -p halo2_proofs
-          --benches
-          --examples
-          --all-features
-      - name: Check intra-doc links
-        run: >-
-          cargo doc
-          -p halo2_gadgets
-          -p halo2_poseidon
-          -p halo2_proofs
-          --all-features
-          --document-private-items
-      - name: Check formatting
-        run: >-
-          cargo fmt
-          -p halo2_gadgets
-          -p halo2_poseidon
-          -p halo2_proofs
-          -- --check
-
-  halo2-coverage:
-    name: halo2 / Code coverage
-    needs: changes
-    if: needs.changes.outputs.halo2 == 'true'
-    runs-on: ubuntu-latest
-    container:
-      image: xd009642/tarpaulin:develop-nightly
-      options: --security-opt seccomp=unconfined
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Generate coverage report
-        run: >-
-          cargo tarpaulin
-          -p halo2_gadgets
-          -p halo2_poseidon
-          -p halo2_proofs
-          --no-default-features
-          --features batch,dev-graph,gadget-traces,nightly,test-dependencies
-          --engine llvm
-          --timeout 3600
-          --out xml
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6.0.1
 
   # zcash/orchard .github/workflows/ci.yml @
   # 3f7ebf716a04bb76f35afe9fa5296064fcd451ca
@@ -288,41 +401,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@1.85.1
+      - uses: dtolnay/rust-toolchain@stable
       - name: Run tests
-        run: cargo test -p orchard --verbose
+        run: cargo +stable test -p orchard --verbose
       - name: Compile-check verifier-fingerprint capture
         run: >-
-          cargo test -p orchard
+          cargo +stable test -p orchard
           --features verifier-fingerprint
           --no-run
           --verbose
       - name: Verify working directory is clean
         run: git diff --exit-code
-
-  orchard-build-latest:
-    name: orchard / Latest build on ${{ matrix.os }}
-    needs: changes
-    if: needs.changes.outputs.orchard == 'true'
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macOS-latest]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Install build dependencies
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get -y install libfontconfig1-dev
-      - name: Remove lockfile
-        run: rm Cargo.lock
-      - name: Build with latest dependencies
-        run: cargo build -p orchard --all-features --verbose
-      - name: Verify working directory is clean except for the lockfile
-        run: git diff --exit-code ':!Cargo.lock'
 
   orchard-no-std:
     name: orchard / Build no_std for ${{ matrix.target }}
@@ -330,6 +419,7 @@ jobs:
     if: needs.changes.outputs.orchard == 'true'
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         target:
           - wasm32-wasip1
@@ -338,59 +428,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@1.85.1
+      - uses: dtolnay/rust-toolchain@1.88
         with:
           targets: ${{ matrix.target }}
       - name: Build no_std target
         run: >-
-          cargo build -p orchard
+          cargo +1.88 build -p orchard
           --no-default-features
           --target ${{ matrix.target }}
           --verbose
-
-  orchard-checks:
-    name: orchard / Bitrot, docs, and formatting
-    needs: changes
-    if: needs.changes.outputs.orchard == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@1.85.1
-        with:
-          components: clippy, rustfmt
-      - name: Build benchmarks
-        run: cargo build -p orchard --benches
-      - name: Run Clippy
-        run: cargo clippy -p orchard --no-deps -- -D warnings
-      - name: Check intra-doc links
-        run: cargo doc -p orchard --all-features --document-private-items
-      - name: Check formatting
-        run: cargo fmt -p orchard -- --check
-
-  orchard-coverage:
-    name: orchard / Code coverage
-    needs: changes
-    if: needs.changes.outputs.orchard == 'true'
-    runs-on: ubuntu-latest
-    container:
-      image: xd009642/tarpaulin:develop-nightly
-      options: --security-opt seccomp=unconfined
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Generate coverage report
-        run: >-
-          cargo tarpaulin -p orchard
-          --engine llvm
-          --features dev-graph,unstable-frost,unstable-voting-circuits,test-dependencies
-          --release
-          --timeout 600
-          --out xml
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3.1.4
 
   # zcash/pasta_curves .github/workflows/ci.yml @
   # bd896a571d34bceb3451a048a08cf21f78ef1942
@@ -411,7 +457,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Run tests
         run: >-
-          cargo test -p pasta_curves
+          cargo +stable test -p pasta_curves
           --verbose
           --release
           ${{ matrix.features }}
@@ -431,14 +477,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.88
         with:
           targets: i686-unknown-linux-gnu
       - name: Install cross-platform support dependencies
         run: sudo apt-get update && sudo apt-get install -y gcc-multilib
       - name: Run tests
         run: >-
-          cargo test -p pasta_curves
+          cargo +1.88 test -p pasta_curves
           --verbose
           --target i686-unknown-linux-gnu
           ${{ matrix.features }}
@@ -451,6 +497,7 @@ jobs:
     if: needs.changes.outputs.pasta_curves == 'true'
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         target:
           - thumbv6m-none-eabi
@@ -460,57 +507,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.88
         with:
           targets: ${{ matrix.target }}
       - name: Build target
         run: >-
-          cargo build -p pasta_curves
+          cargo +1.88 build -p pasta_curves
           --verbose
           --target ${{ matrix.target }}
           --no-default-features
-
-  pasta-checks:
-    name: pasta_curves / Bitrot, docs, and formatting
-    needs: changes
-    if: needs.changes.outputs.pasta_curves == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Build benchmarks
-        run: cargo build -p pasta_curves --benches --all-features
-      - name: Check intra-doc links
-        run: >-
-          cargo doc -p pasta_curves
-          --all-features
-          --document-private-items
-      - name: Check formatting
-        run: cargo fmt -p pasta_curves -- --check
-
-  pasta-coverage:
-    name: pasta_curves / Code coverage
-    needs: changes
-    if: needs.changes.outputs.pasta_curves == 'true'
-    runs-on: ubuntu-latest
-    container:
-      image: xd009642/tarpaulin:develop-nightly
-      options: --security-opt seccomp=unconfined
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Generate coverage report
-        run: >-
-          cargo tarpaulin -p pasta_curves
-          --engine llvm
-          --all-features
-          --timeout 600
-          --out Xml
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3.1.1
 
   # ZcashFoundation/reddsa .github/workflows/main.yml @
   # ad34fbe2eb3c3471f43823407b89f313745d51da
@@ -524,22 +529,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo build -p reddsa
-
-  reddsa-nightly:
-    name: reddsa / Test on nightly
-    needs: changes
-    if: needs.changes.outputs.reddsa == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@nightly
-      - name: Update dependencies
-        run: cargo update --verbose
-      - name: Run tests
-        run: cargo test -p reddsa --all-features
+      - run: cargo +stable build -p reddsa
 
   reddsa-no-std:
     name: reddsa / Build no_std
@@ -550,40 +540,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.88
         with:
           targets: thumbv6m-none-eabi
       - run: >-
-          cargo build -p reddsa
+          cargo +1.88 build -p reddsa
           --no-default-features
           --target thumbv6m-none-eabi
-
-  # ZcashFoundation/reddsa .github/workflows/coverage.yaml @
-  # 6ea073ff74252871184e1d3426746fc86809171f
-  reddsa-coverage:
-    name: reddsa / Code coverage
-    needs: changes
-    if: needs.changes.outputs.reddsa == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@nightly
-        with:
-          components: llvm-tools-preview
-      - name: Install cargo-llvm-cov
-        run: cargo install cargo-llvm-cov
-      - name: Run tests
-        run: cargo llvm-cov -p reddsa --lcov --no-report
-      - name: Generate coverage report
-        run: >-
-          cargo llvm-cov -p reddsa
-          --lcov
-          --no-run
-          --output-path lcov.info
-      - name: Upload coverage report to Codecov
-        uses: codecov/codecov-action@v6.0.0
 
   # ZcashFoundation/redjubjub .github/workflows/main.yml @
   # 5a299f0f2e7e3e7a478f3466f85d77ecbf4db6c6
@@ -597,7 +560,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@nightly
-      - run: cargo test -p redjubjub --all-features
+      - run: cargo +nightly test -p redjubjub --all-features
 
   redjubjub-no-std:
     name: redjubjub / Build no_std for ${{ matrix.target }}
@@ -605,6 +568,7 @@ jobs:
     if: needs.changes.outputs.redjubjub == 'true'
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         target:
           - wasm32-wasip1
@@ -613,38 +577,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.88
         with:
           targets: ${{ matrix.target }}
       - run: >-
-          cargo build -p redjubjub
+          cargo +1.88 build -p redjubjub
           --no-default-features
           --target ${{ matrix.target }}
           --verbose
-
-  # ZcashFoundation/redjubjub .github/workflows/coverage.yaml @
-  # 1feb00c999f499e217255857d25458091792fa65
-  redjubjub-coverage:
-    name: redjubjub / Code coverage
-    needs: changes
-    if: needs.changes.outputs.redjubjub == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@nightly
-        with:
-          components: llvm-tools-preview
-      - name: Install cargo-llvm-cov
-        run: cargo install cargo-llvm-cov
-      - name: Generate coverage report
-        shell: bash
-        env:
-          CARGO_INCREMENTAL: 0
-        run: cargo llvm-cov -p redjubjub --lcov > lcov.info
-      - name: Upload coverage report to Codecov
-        uses: codecov/codecov-action@v5.5.2
 
   # zcash/sapling-crypto .github/workflows/ci.yml @
   # 1b24fd9fd20284fdac1c99e0069dbda24e608e57
@@ -661,40 +601,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@1.85.1
+      - uses: dtolnay/rust-toolchain@stable
       - name: Run tests
         run: >-
-          cargo test -p sapling-crypto
+          cargo +stable test -p sapling-crypto
           --all-features
           --verbose
           --release
       - name: Verify working directory is clean
         run: git diff --exit-code
-
-  sapling-build-latest:
-    name: sapling-crypto / Latest build on ${{ matrix.os }}
-    needs: changes
-    if: needs.changes.outputs.sapling_crypto == 'true'
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macOS-latest]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Remove lockfile
-        run: rm Cargo.lock
-      - name: Build with latest dependencies
-        run: >-
-          cargo build -p sapling-crypto
-          --all-targets
-          --all-features
-          --verbose
-      - name: Verify working directory is clean except for the lockfile
-        run: git diff --exit-code ':!Cargo.lock'
 
   sapling-no-std:
     name: sapling-crypto / Build no_std for ${{ matrix.target }}
@@ -702,6 +617,7 @@ jobs:
     if: needs.changes.outputs.sapling_crypto == 'true'
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         target:
           - wasm32-wasip1
@@ -710,44 +626,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@1.85.1
+      - uses: dtolnay/rust-toolchain@1.88
         with:
           targets: ${{ matrix.target }}
       - name: Build target
         run: >-
-          cargo build -p sapling-crypto
+          cargo +1.88 build -p sapling-crypto
           --no-default-features
           --target ${{ matrix.target }}
           --verbose
-
-  sapling-checks:
-    name: sapling-crypto / Bitrot, Clippy, docs, and formatting
-    needs: changes
-    if: needs.changes.outputs.sapling_crypto == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@1.85.1
-        with:
-          components: clippy, rustfmt
-      - name: Build benchmarks
-        run: cargo build -p sapling-crypto --benches
-      - name: Run Clippy
-        run: >-
-          cargo clippy -p sapling-crypto
-          --no-deps
-          --all-targets
-          --all-features
-          -- -D warnings
-      - name: Check intra-doc links
-        run: >-
-          cargo doc -p sapling-crypto
-          --all-features
-          --document-private-items
-      - name: Check formatting
-        run: cargo fmt -p sapling-crypto -- --check
 
   # zcash/librustzcash .github/workflows/ci.yml @
   # 82fa052a06e3af0058a73f320538f9b93193439c
@@ -766,7 +653,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.88
       - name: Run tests
         run: >-
-          cargo test
+          cargo +1.88 test
           -p zcash_keys
           -p zcash_primitives
           -p zcash_proofs
@@ -811,40 +698,12 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.88
       - name: Check all test targets
         run: >-
-          cargo check
+          cargo +1.88 check
           -p zcash_keys
           -p zcash_primitives
           -p zcash_proofs
           --all-targets
           ${{ matrix.flags }}
-
-  librustzcash-build-latest:
-    name: librustzcash subset / Latest build on ${{ matrix.os }}
-    needs: changes
-    if: needs.changes.outputs.librustzcash == 'true'
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macOS-latest]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Remove lockfile
-        run: rm Cargo.lock
-      - name: Build with latest dependencies
-        run: >-
-          cargo build
-          -p zcash_keys
-          -p zcash_primitives
-          -p zcash_proofs
-          --all-targets
-          --all-features
-          --verbose
-      - name: Verify working directory is clean except for the lockfile
-        run: git diff --exit-code ':!Cargo.lock'
 
   librustzcash-no-std:
     name: librustzcash subset / Build ${{ matrix.target }}
@@ -875,62 +734,7 @@ jobs:
         env:
           PACKAGES: ${{ matrix.packages }}
           TARGET: ${{ matrix.target }}
-        run: cargo build $PACKAGES --no-default-features --target "$TARGET" --verbose
-
-  librustzcash-checks:
-    name: librustzcash subset / Bitrot, Clippy, docs, and formatting
-    needs: changes
-    if: needs.changes.outputs.librustzcash == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@1.88
-        with:
-          components: clippy, rustfmt
-      - name: Build benchmarks
-        run: >-
-          cargo build
-          -p zcash_keys
-          -p zcash_primitives
-          -p zcash_proofs
-          --benches
-      - name: Run Clippy
-        run: >-
-          cargo clippy
-          -p zcash_keys
-          -p zcash_primitives
-          -p zcash_proofs
-          --no-deps
-          --all-features
-          --all-targets
-          -- -D warnings
-      - name: Run Clippy without default features
-        run: >-
-          cargo clippy
-          -p zcash_keys
-          -p zcash_primitives
-          -p zcash_proofs
-          --no-deps
-          --no-default-features
-          -- -D warnings
-      - name: Check intra-doc links
-        run: >-
-          cargo doc
-          -p zcash_keys
-          -p zcash_primitives
-          -p zcash_proofs
-          --no-deps
-          --all-features
-          --document-private-items
-      - name: Check formatting
-        run: >-
-          cargo fmt
-          -p zcash_keys
-          -p zcash_primitives
-          -p zcash_proofs
-          -- --check
+        run: cargo +1.88 build $PACKAGES --no-default-features --target "$TARGET" --verbose
 
   librustzcash-clippy-beta:
     name: librustzcash subset / Clippy on beta
@@ -946,7 +750,7 @@ jobs:
         with:
           components: clippy
       - run: >-
-          cargo clippy
+          cargo +beta clippy
           -p zcash_keys
           -p zcash_primitives
           -p zcash_proofs
@@ -971,11 +775,11 @@ jobs:
         shell: bash
         run: |
           for package in zcash_keys zcash_primitives zcash_proofs; do
-            cargo metadata --no-deps --format-version 1 |
+            cargo +1.88 metadata --no-deps --format-version 1 |
               jq -r --arg package "$package" \
                 '.packages[] | select(.name == $package) | .features | keys[]' |
               while IFS= read -r feature; do
-                cargo clippy -p "$package" \
+                cargo +1.88 clippy -p "$package" \
                   --no-deps \
                   --no-default-features \
                   --features "$feature" \

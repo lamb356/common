@@ -26,8 +26,8 @@ fn sort_unstable() {
 
         for &modulus in &[5, 10, 100, 1000] {
             for _ in 0..rounds {
-                for i in 0..len {
-                    v[i] = rng.gen::<i32>() % modulus;
+                for item in v.iter_mut().take(len) {
+                    *item = rng.gen::<i32>() % modulus;
                 }
 
                 // MODIFIED: "Sort in default order" test removed since the code
@@ -60,15 +60,15 @@ fn sort_unstable() {
 
     // Sort using a completely random comparison function.
     // This will reorder the elements *somehow*, but won't panic.
-    for i in 0..v.len() {
-        v[i] = i as i32;
+    for (i, item) in v.iter_mut().enumerate() {
+        *item = i as i32;
     }
 
     // MODIFIED: test quicksort directly rather than via the slice API.
     quicksort(&mut v, |_, _| *[true, false].choose(&mut rng).unwrap());
     quicksort(&mut v, |a, b| a < b);
-    for i in 0..v.len() {
-        assert_eq!(v[i], i as i32);
+    for (i, item) in v.iter().enumerate() {
+        assert_eq!(*item, i as i32);
     }
 
     // Should not panic.
