@@ -11,6 +11,7 @@
 
 [package]
 edition = "2021"
+rust-version = "1.88"
 name = "halo2_legacy_pdqsort"
 version = "0.1.0"
 authors = [
