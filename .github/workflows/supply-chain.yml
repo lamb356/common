@@ -1,0 +1,60 @@
+name: Supply chain
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supply-chain-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  supply-chain:
+    name: supply chain
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
+        with:
+          cache: false
+      - uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
+        with:
+          tool: cargo-deny@0.19.5,cargo-vet@0.10.2
+
+      - name: Check dependency policy
+        if: ${{ !cancelled() }}
+        run: cargo deny --workspace check bans licenses sources
+
+      # New advisories should be visible immediately without making an
+      # unrelated pull request fail before an upgrade is available.
+      - name: Check dependency advisories
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: cargo deny --workspace check advisories
+
+      - name: Check all-feature dependency policy
+        if: ${{ !cancelled() }}
+        run: cargo deny --workspace --all-features check bans licenses sources
+
+      - name: Check all-feature dependency advisories
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: cargo deny --workspace --all-features check advisories
+
+      - name: Check dependency audits
+        if: ${{ !cancelled() }}
+        run: >-
+          cargo vet check
+          --store-path ./supply-chain/
+          --locked
+          --no-registry-suggestions
