@@ -28,6 +28,7 @@ jobs:
   changes:
     name: Detect changed upstreams
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     outputs:
       halo2: ${{ steps.filter.outputs.halo2 }}
       halo2_legacy_pdqsort: ${{ steps.filter.outputs.halo2_legacy_pdqsort }}
@@ -251,6 +252,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.matrix != '[]'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -307,6 +309,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.matrix != '[]'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -332,6 +335,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.matrix != '[]'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -361,6 +365,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.halo2 == 'true'
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -404,6 +409,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.halo2 == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -446,6 +452,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.halo2 == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -475,6 +482,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.orchard == 'true'
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -500,6 +508,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.orchard == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -527,6 +536,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.pasta_curves == 'true'
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -551,6 +561,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.pasta_curves == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -578,6 +589,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.pasta_curves == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -606,6 +618,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.reddsa == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -618,6 +631,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.reddsa == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -637,6 +651,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.redjubjub == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -649,6 +664,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.redjubjub == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -675,6 +691,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.sapling_crypto == 'true'
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -698,6 +715,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.sapling_crypto == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -724,6 +742,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.librustzcash == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     env:
       CARGO_PROFILE_TEST_DEBUG: 1
       RAYON_NUM_THREADS: 2
@@ -748,6 +767,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.librustzcash == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -791,6 +811,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.librustzcash == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -823,6 +844,7 @@ jobs:
     if: needs.changes.outputs.librustzcash == 'true'
     continue-on-error: true
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -845,6 +867,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.librustzcash == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -895,6 +918,7 @@ jobs:
       - librustzcash-clippy-beta
       - librustzcash-clippy-features
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Decide whether the needed jobs succeeded or failed
         uses: re-actors/alls-green@05ac9388f0aebcb5727afa17fcccfecd6f8ec5fe # v1.2.2
