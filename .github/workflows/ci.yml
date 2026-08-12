@@ -9,26 +9,7 @@ on:
   pull_request:
     branches:
       - main
-    paths:
-      - .cargo/**
-      - .github/workflows/ci.yml
-      - .github/workflows/maintenance.yml
-      - Cargo.lock
-      - Cargo.toml
-      - halo2_gadgets/**
-      - halo2_legacy_pdqsort/**
-      - halo2_poseidon/**
-      - halo2_proofs/**
-      - orchard/**
-      - pasta_curves/**
-      - reddsa/**
-      - redjubjub/**
-      - sapling-crypto/**
-      - sinsemilla/**
-      - zcash_keys/**
-      - zcash_primitives/**
-      - zcash_proofs/**
-      - rust-toolchain.toml
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 permissions:
   contents: read
@@ -77,6 +58,36 @@ jobs:
           sinsemilla=false
           librustzcash=false
           shared=false
+
+          # Every workspace member must map to a test group below. Fail closed
+          # when the workspace grows so a new crate cannot inherit a green
+          # aggregate status without ever being compiled.
+          handled_members=(
+            halo2_gadgets
+            halo2_legacy_pdqsort
+            halo2_poseidon
+            halo2_proofs
+            orchard
+            pasta_curves
+            reddsa
+            redjubjub
+            sapling-crypto
+            sinsemilla
+            zcash_keys
+            zcash_primitives
+            zcash_proofs
+          )
+          workspace_packages=$(python3 .github/scripts/workspace_packages.py)
+          workspace_members=()
+          while IFS= read -r member; do
+            workspace_members+=("$member")
+          done < <(jq -r '.[].directory' <<< "$workspace_packages")
+          if ! diff -u \
+            <(printf '%s\n' "${handled_members[@]}" | sort) \
+            <(printf '%s\n' "${workspace_members[@]}" | sort); then
+            echo "Every workspace member must be assigned to a CI test group" >&2
+            exit 1
+          fi
 
           while IFS= read -r path; do
             case "$path" in
@@ -167,6 +178,7 @@ jobs:
   rust-checks:
     name: ${{ matrix.upstream }} / Stable Rust checks
     needs: changes
+    if: needs.changes.outputs.matrix != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -222,6 +234,7 @@ jobs:
   msrv:
     name: ${{ matrix.upstream }} / MSRV
     needs: changes
+    if: needs.changes.outputs.matrix != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -246,6 +259,7 @@ jobs:
   formatting:
     name: ${{ matrix.upstream }} / Formatting
     needs: changes
+    if: needs.changes.outputs.matrix != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -781,3 +795,62 @@ jobs:
                   --features "$feature"
               done
           done
+
+  test-success:
+    name: test success
+    if: always()
+    needs:
+      - changes
+      - rust-checks
+      - msrv
+      - formatting
+      - halo2-test
+      - halo2-test-32-bit
+      - halo2-build
+      - orchard-test
+      - orchard-no-std
+      - pasta-test
+      - pasta-test-32-bit
+      - pasta-no-std
+      - reddsa-build
+      - reddsa-no-std
+      - redjubjub-test
+      - redjubjub-no-std
+      - sapling-test
+      - sapling-no-std
+      - librustzcash-test
+      - librustzcash-feature-check
+      - librustzcash-no-std
+      - librustzcash-clippy-beta
+      - librustzcash-clippy-features
+    runs-on: ubuntu-latest
+    steps:
+      - name: Decide whether the needed jobs succeeded or failed
+        uses: re-actors/alls-green@05ac9388f0aebcb5727afa17fcccfecd6f8ec5fe # v1.2.2
+        with:
+          jobs: ${{ toJSON(needs) }}
+          # Every job except the detector is path-gated. A skipped job is valid,
+          # but a failed or cancelled job must still fail this aggregate status.
+          allowed-skips: >-
+            rust-checks,
+            msrv,
+            formatting,
+            halo2-test,
+            halo2-test-32-bit,
+            halo2-build,
+            orchard-test,
+            orchard-no-std,
+            pasta-test,
+            pasta-test-32-bit,
+            pasta-no-std,
+            reddsa-build,
+            reddsa-no-std,
+            redjubjub-test,
+            redjubjub-no-std,
+            sapling-test,
+            sapling-no-std,
+            librustzcash-test,
+            librustzcash-feature-check,
+            librustzcash-no-std,
+            librustzcash-clippy-beta,
+            librustzcash-clippy-features
