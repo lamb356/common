@@ -60,7 +60,10 @@ where
             // operation panics, `hole` will get dropped and automatically write the element back
             // into the slice.
             let mut tmp = mem::ManuallyDrop::new(ptr::read(v.get_unchecked(0)));
-            let mut hole = CopyOnDrop { src: &mut *tmp, dest: v.get_unchecked_mut(1) };
+            let mut hole = CopyOnDrop {
+                src: &mut *tmp,
+                dest: v.get_unchecked_mut(1),
+            };
             ptr::copy_nonoverlapping(v.get_unchecked(1), v.get_unchecked_mut(0), 1);
 
             for i in 2..len {
@@ -105,7 +108,10 @@ where
             // operation panics, `hole` will get dropped and automatically write the element back
             // into the slice.
             let mut tmp = mem::ManuallyDrop::new(ptr::read(v.get_unchecked(len - 1)));
-            let mut hole = CopyOnDrop { src: &mut *tmp, dest: v.get_unchecked_mut(len - 2) };
+            let mut hole = CopyOnDrop {
+                src: &mut *tmp,
+                dest: v.get_unchecked_mut(len - 2),
+            };
             ptr::copy_nonoverlapping(v.get_unchecked(len - 2), v.get_unchecked_mut(len - 1), 1);
 
             for i in (0..len - 2).rev() {
@@ -195,8 +201,11 @@ where
             let right = 2 * node + 2;
 
             // Choose the greater child.
-            let greater =
-                if right < v.len() && is_less(&v[left], &v[right]) { right } else { left };
+            let greater = if right < v.len() && is_less(&v[left], &v[right]) {
+                right
+            } else {
+                left
+            };
 
             // Stop if the invariant holds at `node`.
             if greater >= v.len() || !is_less(&v[node], &v[greater]) {
@@ -414,7 +423,7 @@ where
             // safe. Otherwise, the debug assertions in the `is_done` case guarantee that
             // `width(l, r) == block_l + block_r`, namely, that the block sizes have been adjusted to account
             // for the smaller number of remaining elements.
-            l = unsafe { l.offset(block_l as isize) };
+            l = unsafe { l.add(block_l) };
         }
 
         if start_r == end_r {
@@ -484,7 +493,10 @@ where
         // Read the pivot into a stack-allocated variable for efficiency. If a following comparison
         // operation panics, the pivot will be automatically written back into the slice.
         let mut tmp = mem::ManuallyDrop::new(unsafe { ptr::read(pivot) });
-        let _pivot_guard = CopyOnDrop { src: &mut *tmp, dest: pivot };
+        let _pivot_guard = CopyOnDrop {
+            src: &mut *tmp,
+            dest: pivot,
+        };
         let pivot = &*tmp;
 
         // Find the first pair of out-of-order elements.
@@ -507,7 +519,10 @@ where
             }
         }
 
-        (l + partition_in_blocks(&mut v[l..r], pivot, is_less), l >= r)
+        (
+            l + partition_in_blocks(&mut v[l..r], pivot, is_less),
+            l >= r,
+        )
 
         // `_pivot_guard` goes out of scope and writes the pivot (which is a stack-allocated
         // variable) back into the slice where it originally was. This step is critical in ensuring
@@ -537,7 +552,10 @@ where
     // operation panics, the pivot will be automatically written back into the slice.
     // SAFETY: The pointer here is valid because it is obtained from a reference to a slice.
     let mut tmp = mem::ManuallyDrop::new(unsafe { ptr::read(pivot) });
-    let _pivot_guard = CopyOnDrop { src: &mut *tmp, dest: pivot };
+    let _pivot_guard = CopyOnDrop {
+        src: &mut *tmp,
+        dest: pivot,
+    };
     let pivot = &*tmp;
 
     // Now partition the slice.
@@ -635,7 +653,7 @@ where
     let len = v.len();
 
     // Three indices near which we are going to choose a pivot.
-    let mut a = len / 4 * 1;
+    let mut a = len / 4;
     let mut b = len / 4 * 2;
     let mut c = len / 4 * 3;
 

@@ -1,0 +1,224 @@
+name: Maintenance
+
+# Expensive and dependency-drift checks stay off the pull-request critical
+# path. API documentation is intentionally not built in this repository.
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: maintenance-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  orchard-latest:
+    name: orchard / Latest dependencies on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install build dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get -y install libfontconfig1-dev
+      - name: Remove lockfile
+        run: rm Cargo.lock
+      - name: Build with latest dependencies
+        run: cargo +stable build -p orchard --all-features --verbose
+      - name: Verify working directory is clean except for the lockfile
+        run: git diff --exit-code ':!Cargo.lock'
+
+  sapling-latest:
+    name: sapling-crypto / Latest dependencies on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Remove lockfile
+        run: rm Cargo.lock
+      - name: Build with latest dependencies
+        run: >-
+          cargo +stable build -p sapling-crypto
+          --all-targets
+          --all-features
+          --verbose
+      - name: Verify working directory is clean except for the lockfile
+        run: git diff --exit-code ':!Cargo.lock'
+
+  librustzcash-latest:
+    name: librustzcash subset / Latest dependencies on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Remove lockfile
+        run: rm Cargo.lock
+      - name: Build with latest dependencies
+        run: >-
+          cargo +stable build
+          -p zcash_keys
+          -p zcash_primitives
+          -p zcash_proofs
+          --all-targets
+          --all-features
+          --verbose
+      - name: Verify working directory is clean except for the lockfile
+        run: git diff --exit-code ':!Cargo.lock'
+
+  reddsa-latest:
+    name: reddsa / Nightly with latest dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: Update dependencies
+        run: cargo +nightly update --verbose
+      - name: Run tests
+        run: cargo +nightly test -p reddsa --all-features
+
+  redjubjub-nightly:
+    name: redjubjub / Test on nightly
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo +nightly test -p redjubjub --all-features
+
+  halo2-coverage:
+    name: halo2 / Code coverage
+    runs-on: ubuntu-latest
+    container:
+      image: xd009642/tarpaulin:develop-nightly
+      options: --security-opt seccomp=unconfined
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Generate coverage report
+        run: >-
+          cargo tarpaulin
+          -p halo2_gadgets
+          -p halo2_poseidon
+          -p halo2_proofs
+          --no-default-features
+          --features batch,dev-graph,gadget-traces,nightly,test-dependencies
+          --engine llvm
+          --timeout 3600
+          --out xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6.0.1
+
+  orchard-coverage:
+    name: orchard / Code coverage
+    runs-on: ubuntu-latest
+    container:
+      image: xd009642/tarpaulin:develop-nightly
+      options: --security-opt seccomp=unconfined
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Generate coverage report
+        run: >-
+          cargo tarpaulin -p orchard
+          --engine llvm
+          --features dev-graph,unstable-frost,unstable-voting-circuits,test-dependencies
+          --release
+          --timeout 600
+          --out xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3.1.4
+
+  pasta-coverage:
+    name: pasta_curves / Code coverage
+    runs-on: ubuntu-latest
+    container:
+      image: xd009642/tarpaulin:develop-nightly
+      options: --security-opt seccomp=unconfined
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Generate coverage report
+        run: >-
+          cargo tarpaulin -p pasta_curves
+          --engine llvm
+          --all-features
+          --timeout 600
+          --out Xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3.1.1
+
+  reddsa-coverage:
+    name: reddsa / Code coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: llvm-tools-preview
+      - name: Install cargo-llvm-cov
+        run: cargo +nightly install cargo-llvm-cov
+      - name: Run tests
+        run: cargo +nightly llvm-cov -p reddsa --lcov --no-report
+      - name: Generate coverage report
+        run: >-
+          cargo +nightly llvm-cov -p reddsa
+          --lcov
+          --no-run
+          --output-path lcov.info
+      - name: Upload coverage report to Codecov
+        uses: codecov/codecov-action@v6.0.0
+
+  redjubjub-coverage:
+    name: redjubjub / Code coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: llvm-tools-preview
+      - name: Install cargo-llvm-cov
+        run: cargo +nightly install cargo-llvm-cov
+      - name: Generate coverage report
+        shell: bash
+        env:
+          CARGO_INCREMENTAL: 0
+        run: cargo +nightly llvm-cov -p redjubjub --lcov > lcov.info
+      - name: Upload coverage report to Codecov
+        uses: codecov/codecov-action@v5.5.2
