@@ -173,6 +173,40 @@ jobs:
             librustzcash=true
           fi
 
+          # Expand changed packages through the workspace's reverse-dependency
+          # graph. Keep these assignments ordered from foundational crates to
+          # their downstream consumers so each transitive edge is applied. The
+          # member check above catches new crates; update this graph when a
+          # workspace path-dependency edge changes.
+          if [[ "$pasta_curves" == true ]]; then
+            halo2=true
+            reddsa=true
+            sinsemilla=true
+          fi
+          if [[ "$halo2_legacy_pdqsort" == true ]]; then
+            halo2=true
+          fi
+          if [[ "$sinsemilla" == true ]]; then
+            halo2=true
+            orchard=true
+          fi
+          if [[ "$halo2" == true ]]; then
+            orchard=true
+          fi
+          if [[ "$reddsa" == true ]]; then
+            redjubjub=true
+            orchard=true
+          fi
+          if [[ "$redjubjub" == true ]]; then
+            sapling_crypto=true
+          fi
+          if [[ "$orchard" == true ]]; then
+            librustzcash=true
+          fi
+          if [[ "$sapling_crypto" == true ]]; then
+            librustzcash=true
+          fi
+
           matrix='[]'
           add_group() {
             matrix=$(jq -c \
