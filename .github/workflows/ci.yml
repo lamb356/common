@@ -9,13 +9,16 @@ on:
   pull_request:
     branches:
       - main
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+  push:
+    branches:
+      - main
+  merge_group:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 env:
@@ -45,9 +48,43 @@ jobs:
         id: filter
         shell: bash
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BASE_SHA: ${{ github.event.before }}
+          PUSH_HEAD_SHA: ${{ github.sha }}
+          MERGE_BASE_SHA: ${{ github.event.merge_group.base_sha }}
+          MERGE_HEAD_SHA: ${{ github.event.merge_group.head_sha }}
         run: |
+          case "$EVENT_NAME" in
+            pull_request)
+              base_sha=$PR_BASE_SHA
+              head_sha=$PR_HEAD_SHA
+              ;;
+            push)
+              base_sha=$PUSH_BASE_SHA
+              head_sha=$PUSH_HEAD_SHA
+              ;;
+            merge_group)
+              base_sha=$MERGE_BASE_SHA
+              head_sha=$MERGE_HEAD_SHA
+              ;;
+            *)
+              echo "Unsupported event: $EVENT_NAME" >&2
+              exit 1
+              ;;
+          esac
+
+          if [[ "$base_sha" == "0000000000000000000000000000000000000000" ]] ||
+            ! git cat-file -e "${base_sha}^{commit}" 2>/dev/null; then
+            # Diff a new ref, or an unreachable pre-force-push base, from the
+            # empty tree. The root manifest then conservatively selects all suites.
+            base_sha=$(git hash-object -t tree /dev/null)
+          elif [[ "$EVENT_NAME" == pull_request ]]; then
+            base_sha=$(git merge-base "$base_sha" "$head_sha")
+          fi
+          changed=$(git diff --name-only --no-renames "$base_sha" "$head_sha")
+
           halo2=false
           halo2_legacy_pdqsort=false
           orchard=false
@@ -122,7 +159,7 @@ jobs:
                 shared=true
                 ;;
             esac
-          done < <(git diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA")
+          done <<< "$changed"
 
           if [[ "$shared" == true ]]; then
             halo2=true
