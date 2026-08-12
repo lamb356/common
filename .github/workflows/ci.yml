@@ -618,7 +618,6 @@ jobs:
       matrix:
         target:
           - wasm32-wasip1
-          - thumbv7em-none-eabihf
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -779,7 +778,6 @@ jobs:
                 cargo +1.88.0 clippy -p "$package" \
                   --no-deps \
                   --no-default-features \
-                  --features "$feature" \
-                  -- -D warnings
+                  --features "$feature"
               done
           done

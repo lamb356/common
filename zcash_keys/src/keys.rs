@@ -1710,6 +1710,7 @@ impl UnifiedIncomingViewingKey {
     ///
     /// [`Require`]: ReceiverRequirement::Require
     #[allow(unused_mut)]
+    #[cfg_attr(not(feature = "sapling"), allow(clippy::never_loop))]
     pub fn find_address(
         &self,
         mut j: DiversifierIndex,
