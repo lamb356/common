@@ -176,10 +176,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
+      - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-          toolchain: stable
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
       - name: Check locked all-feature build
         shell: bash
         env:
@@ -230,9 +231,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
-        with:
-          toolchain: 1.88
+      - uses: dtolnay/rust-toolchain@1.88.0
       - name: Check on Rust 1.88
         shell: bash
         env:
@@ -242,7 +241,7 @@ jobs:
           for package in $PACKAGES; do
             package_args+=(--package "$package")
           done
-          cargo +1.88 check --locked "${package_args[@]}"
+          cargo +1.88.0 check --locked "${package_args[@]}"
 
   formatting:
     name: ${{ matrix.upstream }} / Formatting
@@ -256,10 +255,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
+      - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt
-          toolchain: nightly
       - name: Check formatting
         shell: bash
         env:
@@ -336,7 +334,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@1.88
+      - uses: dtolnay/rust-toolchain@1.88.0
         with:
           targets: i686-unknown-linux-gnu
       - name: Install cross-platform support dependencies
@@ -350,7 +348,7 @@ jobs:
           if [[ "$STAGE" != stable ]]; then
             features="$features,$STAGE"
           fi
-          cargo +1.88 test --verbose --release \
+          cargo +1.88.0 test --verbose --release \
             -p halo2_gadgets \
             -p halo2_poseidon \
             -p halo2_proofs \
@@ -367,18 +365,17 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - wasm32-unknown-unknown
           - wasm32-wasip1
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@1.88
+      - uses: dtolnay/rust-toolchain@1.88.0
         with:
           targets: ${{ matrix.target }}
       - name: Build target
         run: >-
-          cargo +1.88 build
+          cargo +1.88.0 build
           -p halo2_gadgets
           -p halo2_poseidon
           -p halo2_proofs
@@ -428,12 +425,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@1.88
+      - uses: dtolnay/rust-toolchain@1.88.0
         with:
           targets: ${{ matrix.target }}
       - name: Build no_std target
         run: >-
-          cargo +1.88 build -p orchard
+          cargo +1.88.0 build -p orchard
           --no-default-features
           --target ${{ matrix.target }}
           --verbose
@@ -477,14 +474,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@1.88
+      - uses: dtolnay/rust-toolchain@1.88.0
         with:
           targets: i686-unknown-linux-gnu
       - name: Install cross-platform support dependencies
         run: sudo apt-get update && sudo apt-get install -y gcc-multilib
       - name: Run tests
         run: >-
-          cargo +1.88 test -p pasta_curves
+          cargo +1.88.0 test -p pasta_curves
           --verbose
           --target i686-unknown-linux-gnu
           ${{ matrix.features }}
@@ -507,12 +504,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@1.88
+      - uses: dtolnay/rust-toolchain@1.88.0
         with:
           targets: ${{ matrix.target }}
       - name: Build target
         run: >-
-          cargo +1.88 build -p pasta_curves
+          cargo +1.88.0 build -p pasta_curves
           --verbose
           --target ${{ matrix.target }}
           --no-default-features
@@ -540,18 +537,18 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@1.88
+      - uses: dtolnay/rust-toolchain@1.88.0
         with:
           targets: thumbv6m-none-eabi
       - run: >-
-          cargo +1.88 build -p reddsa
+          cargo +1.88.0 build -p reddsa
           --no-default-features
           --target thumbv6m-none-eabi
 
   # ZcashFoundation/redjubjub .github/workflows/main.yml @
   # 5a299f0f2e7e3e7a478f3466f85d77ecbf4db6c6
-  redjubjub-nightly:
-    name: redjubjub / Test on nightly
+  redjubjub-test:
+    name: redjubjub / Test
     needs: changes
     if: needs.changes.outputs.redjubjub == 'true'
     runs-on: ubuntu-latest
@@ -559,8 +556,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@nightly
-      - run: cargo +nightly test -p redjubjub --all-features
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo +stable test -p redjubjub --all-features
 
   redjubjub-no-std:
     name: redjubjub / Build no_std for ${{ matrix.target }}
@@ -577,11 +574,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@1.88
+      - uses: dtolnay/rust-toolchain@1.88.0
         with:
           targets: ${{ matrix.target }}
       - run: >-
-          cargo +1.88 build -p redjubjub
+          cargo +1.88.0 build -p redjubjub
           --no-default-features
           --target ${{ matrix.target }}
           --verbose
@@ -626,12 +623,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@1.88
+      - uses: dtolnay/rust-toolchain@1.88.0
         with:
           targets: ${{ matrix.target }}
       - name: Build target
         run: >-
-          cargo +1.88 build -p sapling-crypto
+          cargo +1.88.0 build -p sapling-crypto
           --no-default-features
           --target ${{ matrix.target }}
           --verbose
@@ -650,10 +647,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@1.88
+      - uses: dtolnay/rust-toolchain@1.88.0
       - name: Run tests
         run: >-
-          cargo +1.88 test
+          cargo +1.88.0 test
           -p zcash_keys
           -p zcash_primitives
           -p zcash_proofs
@@ -695,10 +692,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@1.88
+      - uses: dtolnay/rust-toolchain@1.88.0
       - name: Check all test targets
         run: >-
-          cargo +1.88 check
+          cargo +1.88.0 check
           -p zcash_keys
           -p zcash_primitives
           -p zcash_proofs
@@ -724,7 +721,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@1.88
+      - uses: dtolnay/rust-toolchain@1.88.0
         with:
           targets: ${{ matrix.target }}
       - name: Install cross-platform support dependencies
@@ -734,7 +731,7 @@ jobs:
         env:
           PACKAGES: ${{ matrix.packages }}
           TARGET: ${{ matrix.target }}
-        run: cargo +1.88 build $PACKAGES --no-default-features --target "$TARGET" --verbose
+        run: cargo +1.88.0 build $PACKAGES --no-default-features --target "$TARGET" --verbose
 
   librustzcash-clippy-beta:
     name: librustzcash subset / Clippy on beta
@@ -768,18 +765,18 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@1.88
+      - uses: dtolnay/rust-toolchain@1.88.0
         with:
           components: clippy
       - name: Clippy each feature of each imported crate
         shell: bash
         run: |
           for package in zcash_keys zcash_primitives zcash_proofs; do
-            cargo +1.88 metadata --no-deps --format-version 1 |
+            cargo +1.88.0 metadata --no-deps --format-version 1 |
               jq -r --arg package "$package" \
                 '.packages[] | select(.name == $package) | .features | keys[]' |
               while IFS= read -r feature; do
-                cargo +1.88 clippy -p "$package" \
+                cargo +1.88.0 clippy -p "$package" \
                   --no-deps \
                   --no-default-features \
                   --features "$feature" \

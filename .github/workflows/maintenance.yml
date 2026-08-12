@@ -105,6 +105,16 @@ jobs:
       - name: Run tests
         run: cargo +nightly test -p reddsa --all-features
 
+  redjubjub-nightly:
+    name: redjubjub / Test on nightly
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo +nightly test -p redjubjub --all-features
+
   halo2-coverage:
     name: halo2 / Code coverage
     runs-on: ubuntu-latest
