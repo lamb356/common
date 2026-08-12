@@ -1,0 +1,33 @@
+version: 2
+
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    # Routine updates need matching cargo-vet evidence, so maintainers curate
+    # them explicitly. Security updates remain enabled at repository level.
+    versioning-strategy: auto
+    schedule:
+      interval: monthly
+      timezone: America/New_York
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+    open-pull-requests-limit: 0
+    labels:
+      - dependencies
+      - rust
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: wednesday
+      timezone: America/New_York
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 4
+    labels:
+      - dependencies
+    groups:
+      actions:
+        patterns:
+          - "*"
