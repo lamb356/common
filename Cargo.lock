@@ -2240,6 +2240,7 @@ version = "0.5.2"
 dependencies = [
  "bincode",
  "blake2b_simd",
+ "cc",
  "criterion 0.4.0",
  "ec-gpu",
  "ff",
