@@ -4,13 +4,27 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - "**/*.md"
+      - .github/codespellrc
+      - .github/lychee.toml
+      - .github/markdownlint.yml
+      - .github/scripts/check_markdown_delta.sh
+      - .github/workflows/docs.yml
   push:
     branches:
       - main
-  merge_group:
+    paths:
+      - "**/*.md"
+      - .github/codespellrc
+      - .github/lychee.toml
+      - .github/markdownlint.yml
+      - .github/scripts/check_markdown_delta.sh
+      - .github/workflows/docs.yml
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: docs-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
@@ -84,6 +98,7 @@ jobs:
           policy_changed=$(git diff --name-only --no-renames \
             "$base_sha" "$head_sha" -- \
             .github/codespellrc \
+            .github/lychee.toml \
             .github/markdownlint.yml \
             .github/scripts/check_markdown_delta.sh \
             .github/workflows/docs.yml)
@@ -142,7 +157,7 @@ jobs:
         if: steps.docs.outputs.has_check_docs == 'true' || steps.docs.outputs.policy_changed == 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: "24"
+          node-version: "22"
 
       - name: Install markdownlint
         if: steps.docs.outputs.has_check_docs == 'true' || steps.docs.outputs.policy_changed == 'true'
@@ -168,19 +183,30 @@ jobs:
           printf '# Configuration smoke test\n' > "$RUNNER_TEMP/docs-smoke.md"
           markdownlint --config .github/markdownlint.yml "$RUNNER_TEMP/docs-smoke.md"
 
-      - name: Install link checker
-        if: steps.docs.outputs.has_check_docs == 'true' || steps.docs.outputs.policy_changed == 'true'
-        uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
+      - name: Restore lychee cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          tool: lychee@0.24.2
+          path: .lycheecache
+          key: cache-lychee-${{ github.sha }}
+          restore-keys: cache-lychee-
 
-      - name: Check links in changed Markdown files
-        if: steps.docs.outputs.has_check_docs == 'true'
-        shell: bash
-        run: |
-          mapfile -t docs < "$RUNNER_TEMP/check-docs.txt"
-          lychee --no-progress --exclude-all-private "${docs[@]}"
+      - name: Check links
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
+        with:
+          args: >-
+            --verbose
+            --no-progress
+            --cache
+            --max-cache-age 2d
+            --config .github/lychee.toml
+            "**/*.md"
+          fail: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Validate link checker invocation
-        if: steps.docs.outputs.policy_changed == 'true'
-        run: lychee --no-progress --exclude-all-private "$RUNNER_TEMP/docs-smoke.md"
+      - name: Save lychee cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .lycheecache
+          key: cache-lychee-${{ github.sha }}
