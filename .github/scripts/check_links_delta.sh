@@ -74,7 +74,7 @@ normalize_findings() {
       fi
       printf '%s\t%s\n' "$source" "$url"
     done |
-    sort -u > "$output"
+    sort > "$output"
 }
 
 compare_report() {
