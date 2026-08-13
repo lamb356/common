@@ -141,7 +141,11 @@ jobs:
         run: |
           added_lines=$(
             git diff --unified=0 --no-renames "$BASE_SHA" "$HEAD_SHA" -- '*.md' \
-              | awk '/^\+\+\+ / { next } /^\+/ { sub(/^\+/, ""); print }'
+              | awk '
+                  /^diff --git / { in_hunk = 0; next }
+                  /^@@ / { in_hunk = 1; next }
+                  in_hunk && /^\+/ { sub(/^\+/, ""); print }
+                '
           )
           if [[ -n "$added_lines" ]]; then
             printf '%s\n' "$added_lines" | codespell --config .github/codespellrc -
