@@ -10,7 +10,8 @@ on:
       - "**/*.rs"
       - "**/Cargo.toml"
       - "**/Cargo.lock"
-      - .github/scripts/workspace_packages.py
+      - .github/scripts/affected_semver_packages.py
+      - .github/scripts/test_affected_semver_packages.py
       - .github/workflows/semver.yml
   push:
     branches:
@@ -19,7 +20,8 @@ on:
       - "**/*.rs"
       - "**/Cargo.toml"
       - "**/Cargo.lock"
-      - .github/scripts/workspace_packages.py
+      - .github/scripts/affected_semver_packages.py
+      - .github/scripts/test_affected_semver_packages.py
       - .github/workflows/semver.yml
   merge_group:
   workflow_dispatch:
@@ -35,32 +37,52 @@ jobs:
   select-packages:
     name: select semver packages
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     outputs:
+      has_packages: ${{ steps.packages.outputs.has_packages }}
       packages: ${{ steps.packages.outputs.packages }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
-      - name: Select publishable workspace packages
+      - name: Select affected publishable packages
         id: packages
         shell: bash
+        env:
+          MERGE_BASE_SHA: ${{ github.event.merge_group.base_sha }}
+          MERGE_HEAD_SHA: ${{ github.event.merge_group.head_sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          workspace_packages=$(python3 .github/scripts/workspace_packages.py)
-          packages=$(jq -c \
-            '[.[] | select(.publish == null or .publish == true or (.publish | type == "array" and length > 0)) | .name]' \
-            <<< "$workspace_packages")
-          if [[ "$packages" == '[]' ]]; then
-            echo "The workspace has no publishable packages" >&2
-            exit 1
-          fi
-          echo "packages=$packages" >> "$GITHUB_OUTPUT"
+          python3 .github/scripts/test_affected_semver_packages.py
+
+          case "$GITHUB_EVENT_NAME" in
+            pull_request)
+              packages=$(python3 .github/scripts/affected_semver_packages.py \
+                --base "$PR_BASE_SHA" --head "$GITHUB_SHA")
+              ;;
+            merge_group)
+              packages=$(python3 .github/scripts/affected_semver_packages.py \
+                --base "$MERGE_BASE_SHA" --head "$MERGE_HEAD_SHA")
+              ;;
+            *)
+              packages=$(python3 .github/scripts/affected_semver_packages.py --all)
+              ;;
+          esac
+
+          packages_json=$(printf '%s\n' "$packages" | jq -Rsc \
+            'split("\n") | map(select(length > 0))')
+          {
+            echo "has_packages=$([[ -n "$packages" ]] && echo true || echo false)"
+            echo "packages=$packages_json"
+          } >> "$GITHUB_OUTPUT"
 
   semver:
     name: semver (${{ matrix.package }})
+    if: needs.select-packages.outputs.has_packages == 'true'
     needs: select-packages
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -69,7 +91,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
+        with:
+          toolchain: stable
+          cache: false
       - uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
         with:
           # Match Zakura's deliberate exception to tool-version pinning:
@@ -83,3 +108,25 @@ jobs:
           cargo semver-checks
           --package "$PACKAGE"
           --default-features
+
+  semver-checks:
+    name: semver-checks
+    if: always()
+    needs: [select-packages, semver]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check semver job results
+        env:
+          HAS_PACKAGES: ${{ needs.select-packages.outputs.has_packages }}
+          SELECT_RESULT: ${{ needs.select-packages.result }}
+          SEMVER_RESULT: ${{ needs.semver.result }}
+        run: |
+          if [[ "$SELECT_RESULT" != success ]]; then
+            echo "Package selection failed: $SELECT_RESULT" >&2
+            exit 1
+          fi
+          if [[ "$HAS_PACKAGES" == true && "$SEMVER_RESULT" != success ]]; then
+            echo "Package checks failed: $SEMVER_RESULT" >&2
+            exit 1
+          fi
