@@ -4,23 +4,9 @@ on:
   pull_request:
     branches:
       - main
-    paths:
-      - "**/*.md"
-      - .github/codespellrc
-      - .github/markdownlint.yml
-      - .github/scripts/check_links_delta.sh
-      - .github/scripts/check_markdown_delta.sh
-      - .github/workflows/docs.yml
   push:
     branches:
       - main
-    paths:
-      - "**/*.md"
-      - .github/codespellrc
-      - .github/markdownlint.yml
-      - .github/scripts/check_links_delta.sh
-      - .github/scripts/check_markdown_delta.sh
-      - .github/workflows/docs.yml
   merge_group:
 
 permissions:
@@ -184,13 +170,11 @@ jobs:
           markdownlint --config .github/markdownlint.yml "$RUNNER_TEMP/docs-smoke.md"
 
       - name: Install link checker
-        if: steps.docs.outputs.has_check_docs == 'true' || steps.docs.outputs.policy_changed == 'true'
         uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
         with:
           tool: lychee@0.24.2
 
       - name: Check newly introduced link failures
-        if: steps.docs.outputs.has_check_docs == 'true'
         shell: bash
         env:
           BASE_SHA: ${{ steps.docs.outputs.base_sha }}
@@ -200,15 +184,3 @@ jobs:
           "$BASE_SHA"
           "$HEAD_SHA"
           "$RUNNER_TEMP/check-docs.txt"
-
-      - name: Validate link checker policy
-        if: steps.docs.outputs.policy_changed == 'true'
-        shell: bash
-        env:
-          HEAD_SHA: ${{ steps.docs.outputs.head_sha }}
-        run: |
-          printf 'README.md\n' > "$RUNNER_TEMP/link-smoke-docs.txt"
-          bash .github/scripts/check_links_delta.sh \
-            "$HEAD_SHA" \
-            "$HEAD_SHA" \
-            "$RUNNER_TEMP/link-smoke-docs.txt"

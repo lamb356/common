@@ -34,35 +34,28 @@ if git cat-file -e "${base_sha}^{commit}" 2>/dev/null; then
   base_added=true
 fi
 
-inputs=()
+changed_inputs=()
 while IFS= read -r document; do
   [[ -n "$document" ]] || continue
-  inputs+=("$head_tree/$document")
+  changed_inputs+=("$head_tree/$document")
   if [[ "$base_added" == true && -f "$base_tree/$document" ]]; then
-    inputs+=("$base_tree/$document")
+    changed_inputs+=("$base_tree/$document")
   fi
 done < "$changed_docs_file"
 
-if (( ${#inputs[@]} == 0 )); then
-  exit 0
-fi
-
-report="$scratch/lychee.json"
-result=0
-lychee --format json --no-progress --exclude-all-private \
-  --output "$report" "${inputs[@]}" || result=$?
-if (( result != 0 && result != 2 )); then
-  echo "lychee failed before producing link-check results" >&2
-  exit "$result"
-fi
-if [[ ! -s "$report" ]]; then
-  echo "lychee produced no link-check report" >&2
-  exit 1
-fi
+local_inputs=()
+while IFS= read -r -d '' document; do
+  [[ "$document" == *.md ]] || continue
+  local_inputs+=("$head_tree/$document")
+  if [[ "$base_added" == true && -f "$base_tree/$document" ]]; then
+    local_inputs+=("$base_tree/$document")
+  fi
+done < <(git ls-tree -r -z --name-only "$head_sha")
 
 normalize_findings() {
-  local tree_root=$1
-  local output=$2
+  local report=$1
+  local tree_root=$2
+  local output=$3
   local file_prefix="file://$tree_root"
 
   jq -r '
@@ -84,18 +77,62 @@ normalize_findings() {
     sort -u > "$output"
 }
 
-base_findings="$scratch/base-findings.txt"
-head_findings="$scratch/head-findings.txt"
-new_findings="$scratch/new-findings.txt"
-: > "$base_findings"
-if [[ "$base_added" == true ]]; then
-  normalize_findings "$base_tree" "$base_findings"
-fi
-normalize_findings "$head_tree" "$head_findings"
-comm -13 "$base_findings" "$head_findings" > "$new_findings"
+compare_report() {
+  local label=$1
+  local report=$2
+  local base_findings="$scratch/$label-base-findings.txt"
+  local head_findings="$scratch/$label-head-findings.txt"
+  local new_findings="$scratch/$label-new-findings.txt"
 
-if [[ -s "$new_findings" ]]; then
-  echo "Changed Markdown introduces link-check findings:" >&2
-  awk -F '\t' '{ printf "  %s: %s\n", $1, $2 }' "$new_findings" >&2
-  exit 1
+  : > "$base_findings"
+  if [[ "$base_added" == true ]]; then
+    normalize_findings "$report" "$base_tree" "$base_findings"
+  fi
+  normalize_findings "$report" "$head_tree" "$head_findings"
+  comm -13 "$base_findings" "$head_findings" > "$new_findings"
+
+  if [[ -s "$new_findings" ]]; then
+    echo "$label introduces link-check findings:" >&2
+    awk -F '\t' '{ printf "  %s: %s\n", $1, $2 }' "$new_findings" >&2
+    return 1
+  fi
+}
+
+run_check() {
+  local label=$1
+  local offline=$2
+  shift 2
+  local inputs=("$@")
+  local options=(--format json --no-progress --exclude-all-private)
+  local report="$scratch/$label-lychee.json"
+  local result=0
+
+  if (( ${#inputs[@]} == 0 )); then
+    return 0
+  fi
+  if [[ "$offline" == true ]]; then
+    options+=(--offline)
+  fi
+
+  lychee "${options[@]}" \
+    --output "$report" -- "${inputs[@]}" || result=$?
+  if (( result != 0 && result != 2 )); then
+    echo "lychee failed before producing $label link-check results" >&2
+    return "$result"
+  fi
+  if [[ ! -s "$report" ]]; then
+    echo "lychee produced no $label link-check report" >&2
+    return 1
+  fi
+
+  compare_report "$label" "$report"
+}
+
+failures=0
+if (( ${#changed_inputs[@]} > 0 )); then
+  run_check "Changed Markdown" false "${changed_inputs[@]}" || failures=1
 fi
+if (( ${#local_inputs[@]} > 0 )); then
+  run_check "Repository-local links" true "${local_inputs[@]}" || failures=1
+fi
+exit "$failures"
