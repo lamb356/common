@@ -1,0 +1,196 @@
+name: Documentation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "**/*.md"
+      - .github/codespellrc
+      - .github/markdownlint.yml
+      - .github/scripts/check_markdown_delta.sh
+      - .github/workflows/docs.yml
+  push:
+    branches:
+      - main
+    paths:
+      - "**/*.md"
+      - .github/codespellrc
+      - .github/markdownlint.yml
+      - .github/scripts/check_markdown_delta.sh
+      - .github/workflows/docs.yml
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    name: docs policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Select changed documentation
+        id: docs
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          MERGE_BASE_SHA: ${{ github.event.merge_group.base_sha }}
+          MERGE_HEAD_SHA: ${{ github.event.merge_group.head_sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BASE_SHA: ${{ github.event.before }}
+          PUSH_HEAD_SHA: ${{ github.sha }}
+        run: |
+          case "$EVENT_NAME" in
+            pull_request)
+              base_sha=$PR_BASE_SHA
+              head_sha=$PR_HEAD_SHA
+              ;;
+            push)
+              base_sha=$PUSH_BASE_SHA
+              head_sha=$PUSH_HEAD_SHA
+              ;;
+            merge_group)
+              base_sha=$MERGE_BASE_SHA
+              head_sha=$MERGE_HEAD_SHA
+              ;;
+            *)
+              echo "Unsupported event: $EVENT_NAME" >&2
+              exit 1
+              ;;
+          esac
+
+          : > "$RUNNER_TEMP/changed-docs.txt"
+          : > "$RUNNER_TEMP/check-docs.txt"
+
+          if [[ "$base_sha" == "0000000000000000000000000000000000000000" ]] ||
+            ! git cat-file -e "${base_sha}^{commit}" 2>/dev/null; then
+            # Treat a new ref, or an unreachable pre-force-push base, as a diff
+            # from the empty tree so documentation checks fail conservatively.
+            base_sha=$(git hash-object -t tree /dev/null)
+          elif [[ "$EVENT_NAME" == pull_request ]]; then
+            base_sha=$(git merge-base "$base_sha" "$head_sha")
+          fi
+          changed=$(git diff --name-status --no-renames "$base_sha" "$head_sha" -- '*.md')
+
+          while IFS=$'\t' read -r status path; do
+            [[ -n "$path" ]] || continue
+            printf '%s\n' "$path" >> "$RUNNER_TEMP/changed-docs.txt"
+            if [[ "$status" != D ]]; then
+              printf '%s\n' "$path" >> "$RUNNER_TEMP/check-docs.txt"
+            fi
+          done <<< "$changed"
+
+          policy_changed=$(git diff --name-only --no-renames \
+            "$base_sha" "$head_sha" -- \
+            .github/codespellrc \
+            .github/markdownlint.yml \
+            .github/scripts/check_markdown_delta.sh \
+            .github/workflows/docs.yml)
+
+          {
+            echo "base_sha=$base_sha"
+            echo "head_sha=$head_sha"
+            if [[ -s "$RUNNER_TEMP/changed-docs.txt" ]]; then
+              echo "has_docs=true"
+            else
+              echo "has_docs=false"
+            fi
+            if [[ -s "$RUNNER_TEMP/check-docs.txt" ]]; then
+              echo "has_check_docs=true"
+            else
+              echo "has_check_docs=false"
+            fi
+            if [[ -n "$policy_changed" ]]; then
+              echo "policy_changed=true"
+            else
+              echo "policy_changed=false"
+            fi
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Check added Markdown whitespace
+        if: steps.docs.outputs.has_docs == 'true'
+        env:
+          BASE_SHA: ${{ steps.docs.outputs.base_sha }}
+          HEAD_SHA: ${{ steps.docs.outputs.head_sha }}
+        run: git diff --check "$BASE_SHA" "$HEAD_SHA" -- '*.md'
+
+      - name: Install codespell
+        if: steps.docs.outputs.has_docs == 'true' || steps.docs.outputs.policy_changed == 'true'
+        run: python3 -m pip install codespell==2.4.2 # zizmor: ignore[adhoc-packages] -- exact pinned, read-only documentation linter
+
+      - name: Spell-check added Markdown lines
+        if: steps.docs.outputs.has_docs == 'true'
+        shell: bash
+        env:
+          BASE_SHA: ${{ steps.docs.outputs.base_sha }}
+          HEAD_SHA: ${{ steps.docs.outputs.head_sha }}
+        run: |
+          added_lines=$(
+            git diff --unified=0 --no-renames "$BASE_SHA" "$HEAD_SHA" -- '*.md' \
+              | awk '/^\+\+\+ / { next } /^\+/ { sub(/^\+/, ""); print }'
+          )
+          if [[ -n "$added_lines" ]]; then
+            printf '%s\n' "$added_lines" | codespell --config .github/codespellrc -
+          fi
+
+      - name: Validate codespell configuration
+        if: steps.docs.outputs.policy_changed == 'true'
+        run: printf 'configuration smoke test\n' | codespell --config .github/codespellrc -
+
+      - name: Set up Node.js
+        if: steps.docs.outputs.has_check_docs == 'true' || steps.docs.outputs.policy_changed == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+
+      - name: Install markdownlint
+        if: steps.docs.outputs.has_check_docs == 'true' || steps.docs.outputs.policy_changed == 'true'
+        run: npm install --global markdownlint-cli@0.49.1 # zizmor: ignore[adhoc-packages] -- exact pinned, read-only documentation linter
+
+      - name: Lint changed Markdown without inheriting baseline findings
+        if: steps.docs.outputs.has_check_docs == 'true'
+        shell: bash
+        env:
+          BASE_SHA: ${{ steps.docs.outputs.base_sha }}
+          HEAD_SHA: ${{ steps.docs.outputs.head_sha }}
+        run: >-
+          bash .github/scripts/check_markdown_delta.sh
+          "$BASE_SHA"
+          "$HEAD_SHA"
+          .github/markdownlint.yml
+          "$RUNNER_TEMP/check-docs.txt"
+
+      - name: Validate markdownlint configuration
+        if: steps.docs.outputs.policy_changed == 'true'
+        shell: bash
+        run: |
+          printf '# Configuration smoke test\n' > "$RUNNER_TEMP/docs-smoke.md"
+          markdownlint --config .github/markdownlint.yml "$RUNNER_TEMP/docs-smoke.md"
+
+      - name: Install link checker
+        if: steps.docs.outputs.has_check_docs == 'true' || steps.docs.outputs.policy_changed == 'true'
+        uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
+        with:
+          tool: lychee@0.24.2
+
+      - name: Check links in changed Markdown files
+        if: steps.docs.outputs.has_check_docs == 'true'
+        shell: bash
+        run: |
+          mapfile -t docs < "$RUNNER_TEMP/check-docs.txt"
+          lychee --no-progress --exclude-all-private "${docs[@]}"
+
+      - name: Validate link checker invocation
+        if: steps.docs.outputs.policy_changed == 'true'
+        run: lychee --no-progress --exclude-all-private "$RUNNER_TEMP/docs-smoke.md"

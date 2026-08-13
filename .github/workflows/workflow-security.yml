@@ -1,0 +1,41 @@
+name: Workflow security
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/**
+  push:
+    branches:
+      - main
+    paths:
+      - .github/**
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workflow-security-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  zizmor:
+    name: zizmor
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Audit GitHub Actions workflows
+        uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2
+        with:
+          # Imported libraries retain inert upstream .github directories.
+          # Audit only this repository's executable GitHub configuration.
+          inputs: .github
+          advanced-security: false
+          annotations: true
+          version: "1.29.0"
+          min-severity: informational
