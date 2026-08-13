@@ -148,6 +148,22 @@ def command_output(command, cwd):
     ).stdout
 
 
+def diff_changed_files(repo_root, base, head):
+    return command_output(
+        [
+            "git",
+            "diff",
+            "--name-only",
+            "--no-renames",
+            "--diff-filter=ACMRDTUXB",
+            base,
+            head,
+            "--",
+        ],
+        repo_root,
+    ).splitlines()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     selection = parser.add_mutually_exclusive_group(required=True)
@@ -178,24 +194,13 @@ def main():
         )
     )
 
-    changed_files = None
+    selected_files = None
     if not args.all:
-        changed_files = command_output(
-            [
-                "git",
-                "diff",
-                "--name-only",
-                "--diff-filter=ACMRDTUXB",
-                args.base,
-                args.head,
-                "--",
-            ],
-            repo_root,
-        ).splitlines()
+        selected_files = diff_changed_files(repo_root, args.base, args.head)
 
     packages = affected_publishable_packages(
         metadata,
-        changed_files=changed_files,
+        changed_files=selected_files,
         check_all=args.all,
     )
     sys.stdout.write("".join(f"{package}\n" for package in packages))

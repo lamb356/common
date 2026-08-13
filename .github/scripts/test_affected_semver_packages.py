@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Tests for affected_semver_packages.py."""
 
+from pathlib import Path
+import subprocess
 import tempfile
 import unittest
-from pathlib import Path
 
 import affected_semver_packages
 
@@ -41,6 +42,15 @@ class AffectedSemverPackagesTest(unittest.TestCase):
             "workspace_members": [package["id"] for package in packages],
             "packages": packages,
         }
+
+    def git(self, *args):
+        return subprocess.run(
+            ["git", *args],
+            cwd=self.root,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        ).stdout.strip()
 
     def test_includes_publishable_reverse_dependencies(self):
         packages = [
@@ -150,6 +160,33 @@ class AffectedSemverPackagesTest(unittest.TestCase):
         )
 
         self.assertEqual(affected, ["default", "explicit", "registry"])
+
+    def test_diff_reports_both_sides_of_a_rename(self):
+        old_path = self.root / "source" / "src" / "lib.rs"
+        new_path = self.root / "destination" / "src" / "lib.rs"
+        old_path.parent.mkdir(parents=True)
+        old_path.write_text("pub fn moved() {}\n", encoding="utf-8")
+
+        self.git("init", "--quiet")
+        self.git("config", "user.email", "ci@example.invalid")
+        self.git("config", "user.name", "CI fixture")
+        self.git("config", "diff.renames", "true")
+        self.git("add", ".")
+        self.git("commit", "--quiet", "-m", "base")
+        base = self.git("rev-parse", "HEAD")
+
+        new_path.parent.mkdir(parents=True)
+        old_path.rename(new_path)
+        self.git("add", "--all")
+        self.git("commit", "--quiet", "-m", "rename")
+        head = self.git("rev-parse", "HEAD")
+
+        changed = affected_semver_packages.diff_changed_files(self.root, base, head)
+
+        self.assertEqual(
+            set(changed),
+            {"source/src/lib.rs", "destination/src/lib.rs"},
+        )
 
 
 if __name__ == "__main__":
