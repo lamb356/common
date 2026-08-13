@@ -13,6 +13,7 @@ exclude = [
     "^https://github.com/.*/runs/",
     "^https://eprint\\.iacr\\.org/",
     "^https://zips\\.z\\.cash/",
+    "^file://.*/halo2_(gadgets|poseidon|proofs)/LICENSE-(APACHE|MIT)$",
 ]
 
 exclude_path = [
