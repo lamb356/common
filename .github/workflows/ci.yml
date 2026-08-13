@@ -548,10 +548,7 @@ jobs:
       - name: Compile tests
         run: cargo +stable test -p orchard --verbose --no-run
       - name: Create and verify a proof individually and in a batch
-        run: >-
-          cargo +stable test -p orchard --verbose --test builder
-          builder_builds_for_post_nu6_3_circuit_version
-          -- --exact
+        run: cargo +stable test -p orchard --verbose --test platform_smoke
       - name: Verify working directory is clean
         run: git diff --exit-code
 
