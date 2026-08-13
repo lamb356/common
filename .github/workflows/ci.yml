@@ -39,7 +39,7 @@ jobs:
       sapling_crypto: ${{ steps.filter.outputs.sapling_crypto }}
       sinsemilla: ${{ steps.filter.outputs.sinsemilla }}
       librustzcash: ${{ steps.filter.outputs.librustzcash }}
-      matrix: ${{ steps.filter.outputs.matrix }}
+      rust_checks: ${{ steps.filter.outputs.rust_checks }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -156,7 +156,7 @@ jobs:
               zcash_keys/*|zcash_primitives/*|zcash_proofs/*)
                 librustzcash=true
                 ;;
-              Cargo.toml|Cargo.lock|rust-toolchain.toml|.cargo/*|.github/scripts/workspace_packages.py|.github/workflows/ci.yml|.github/workflows/maintenance.yml)
+              Cargo.toml|Cargo.lock|rust-toolchain.toml|.cargo/*|.github/scripts/check_rust_group.sh|.github/scripts/workspace_packages.py|.github/workflows/ci.yml|.github/workflows/maintenance.yml)
                 shared=true
                 ;;
             esac
@@ -208,31 +208,18 @@ jobs:
             librustzcash=true
           fi
 
-          matrix='[]'
-          add_group() {
-            matrix=$(jq -c \
-              --arg upstream "$1" \
-              --arg packages "$2" \
-              --argjson has_upstream_ci "$3" \
-              --argjson deny_warnings "$4" \
-              '. + [{upstream: $upstream, packages: $packages, has_upstream_ci: $has_upstream_ci, deny_warnings: $deny_warnings}]' \
-              <<< "$matrix")
-          }
-
-          [[ "$halo2" == true ]] && \
-            add_group halo2 "halo2_gadgets halo2_poseidon halo2_proofs" true false
-          [[ "$halo2_legacy_pdqsort" == true ]] && \
-            add_group halo2_legacy_pdqsort halo2_legacy_pdqsort false false
-          [[ "$orchard" == true ]] && add_group orchard orchard true true
-          [[ "$pasta_curves" == true ]] && \
-            add_group pasta_curves pasta_curves true false
-          [[ "$reddsa" == true ]] && add_group reddsa reddsa true false
-          [[ "$redjubjub" == true ]] && add_group redjubjub redjubjub true false
-          [[ "$sapling_crypto" == true ]] && \
-            add_group sapling-crypto sapling-crypto true true
-          [[ "$sinsemilla" == true ]] && add_group sinsemilla sinsemilla false false
-          [[ "$librustzcash" == true ]] && \
-            add_group librustzcash "zcash_keys zcash_primitives zcash_proofs" true true
+          rust_checks=false
+          if [[ "$halo2" == true ||
+            "$halo2_legacy_pdqsort" == true ||
+            "$orchard" == true ||
+            "$pasta_curves" == true ||
+            "$reddsa" == true ||
+            "$redjubjub" == true ||
+            "$sapling_crypto" == true ||
+            "$sinsemilla" == true ||
+            "$librustzcash" == true ]]; then
+            rust_checks=true
+          fi
 
           {
             echo "halo2=$halo2"
@@ -244,19 +231,15 @@ jobs:
             echo "sapling_crypto=$sapling_crypto"
             echo "sinsemilla=$sinsemilla"
             echo "librustzcash=$librustzcash"
-            echo "matrix=$matrix"
+            echo "rust_checks=$rust_checks"
           } >> "$GITHUB_OUTPUT"
 
   rust-checks:
-    name: ${{ matrix.upstream }} / Stable Rust checks
+    name: Rust checks
     needs: changes
-    if: needs.changes.outputs.matrix != '[]'
+    if: needs.changes.outputs.rust_checks == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        include: ${{ fromJSON(needs.changes.outputs.matrix) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -264,82 +247,49 @@ jobs:
       - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
         with:
           components: clippy
+      - uses: dtolnay/rust-toolchain@2eae45db285e407f22119950686d47e1101e071b # 1.88.0
       - name: Install build dependencies
         run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
-      - name: Check locked all-feature build
-        shell: bash
-        env:
-          PACKAGES: ${{ matrix.packages }}
-        run: |
-          package_args=()
-          for package in $PACKAGES; do
-            package_args+=(--package "$package")
-          done
-          cargo +stable check --locked --all-features --all-targets "${package_args[@]}"
-      - name: Run Clippy
-        shell: bash
-        env:
-          DENY_WARNINGS: ${{ matrix.deny_warnings }}
-          PACKAGES: ${{ matrix.packages }}
-        run: |
-          package_args=()
-          lint_args=()
-          for package in $PACKAGES; do
-            package_args+=(--package "$package")
-          done
-          if [[ "$DENY_WARNINGS" == true ]]; then
-            lint_args+=(-- -D warnings)
-          fi
-          cargo +stable clippy --locked --all-features --all-targets \
-            --no-deps "${package_args[@]}" "${lint_args[@]}"
-      - name: Test crates without upstream CI
-        if: ${{ !matrix.has_upstream_ci }}
-        shell: bash
-        env:
-          PACKAGES: ${{ matrix.packages }}
-        run: |
-          package_args=()
-          for package in $PACKAGES; do
-            package_args+=(--package "$package")
-          done
-          cargo +stable test --locked "${package_args[@]}"
-
-  msrv:
-    name: ${{ matrix.upstream }} / MSRV
-    needs: changes
-    if: needs.changes.outputs.matrix != '[]'
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        include: ${{ fromJSON(needs.changes.outputs.matrix) }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@2eae45db285e407f22119950686d47e1101e071b # 1.88.0
-      - name: Check on Rust 1.88
-        shell: bash
-        env:
-          PACKAGES: ${{ matrix.packages }}
-        run: |
-          package_args=()
-          for package in $PACKAGES; do
-            package_args+=(--package "$package")
-          done
-          cargo +1.88.0 check --locked "${package_args[@]}"
+      - name: halo2 / Stable and MSRV checks
+        if: ${{ !cancelled() && needs.changes.outputs.halo2 == 'true' }}
+        run: >-
+          bash .github/scripts/check_rust_group.sh
+          "halo2_gadgets halo2_poseidon halo2_proofs" false false
+      - name: halo2_legacy_pdqsort / Stable and MSRV checks
+        if: ${{ !cancelled() && needs.changes.outputs.halo2_legacy_pdqsort == 'true' }}
+        run: >-
+          bash .github/scripts/check_rust_group.sh
+          halo2_legacy_pdqsort false true
+      - name: orchard / Stable and MSRV checks
+        if: ${{ !cancelled() && needs.changes.outputs.orchard == 'true' }}
+        run: bash .github/scripts/check_rust_group.sh orchard true false
+      - name: pasta_curves / Stable and MSRV checks
+        if: ${{ !cancelled() && needs.changes.outputs.pasta_curves == 'true' }}
+        run: bash .github/scripts/check_rust_group.sh pasta_curves false false
+      - name: reddsa / Stable and MSRV checks
+        if: ${{ !cancelled() && needs.changes.outputs.reddsa == 'true' }}
+        run: bash .github/scripts/check_rust_group.sh reddsa false false
+      - name: redjubjub / Stable and MSRV checks
+        if: ${{ !cancelled() && needs.changes.outputs.redjubjub == 'true' }}
+        run: bash .github/scripts/check_rust_group.sh redjubjub false false
+      - name: sapling-crypto / Stable and MSRV checks
+        if: ${{ !cancelled() && needs.changes.outputs.sapling_crypto == 'true' }}
+        run: bash .github/scripts/check_rust_group.sh sapling-crypto true false
+      - name: sinsemilla / Stable and MSRV checks
+        if: ${{ !cancelled() && needs.changes.outputs.sinsemilla == 'true' }}
+        run: bash .github/scripts/check_rust_group.sh sinsemilla false true
+      - name: librustzcash / Stable and MSRV checks
+        if: ${{ !cancelled() && needs.changes.outputs.librustzcash == 'true' }}
+        run: >-
+          bash .github/scripts/check_rust_group.sh
+          "zcash_keys zcash_primitives zcash_proofs" true false
 
   formatting:
-    name: ${{ matrix.upstream }} / Formatting
+    name: Formatting
     needs: changes
-    if: needs.changes.outputs.matrix != '[]'
+    if: needs.changes.outputs.rust_checks == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        include: ${{ fromJSON(needs.changes.outputs.matrix) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -348,15 +298,7 @@ jobs:
         with:
           components: rustfmt
       - name: Check formatting
-        shell: bash
-        env:
-          PACKAGES: ${{ matrix.packages }}
-        run: |
-          package_args=()
-          for package in $PACKAGES; do
-            package_args+=(--package "$package")
-          done
-          cargo +nightly fmt "${package_args[@]}" -- --check
+        run: cargo +nightly fmt --all -- --check
 
   # zcash/halo2 .github/workflows/ci.yml @
   # 723a90bc598d986bdf59941a8011c60a0819d6b9
@@ -879,49 +821,109 @@ jobs:
       - name: Verify working directory is clean
         run: git diff --exit-code
 
-  librustzcash-feature-check:
-    name: librustzcash subset / Check ${{ matrix.state }}
+  librustzcash-configurations:
+    name: librustzcash subset / Configuration checks
     needs: changes
     if: needs.changes.outputs.librustzcash == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - state: no-default-features
-            flags: --no-default-features
-          - state: transparent-inputs-only
-            flags: >-
-              --no-default-features
-              --features zcash_keys/transparent-inputs,zcash_primitives/transparent-inputs
-          - state: transparent-key-encoding-only
-            flags: >-
-              --no-default-features
-              --features zcash_keys/transparent-key-encoding
-          - state: Sapling-only
-            flags: >-
-              --no-default-features
-              --features zcash_keys/sapling,zcash_primitives/circuits
-          - state: Orchard
-            flags: >-
-              --no-default-features
-              --features zcash_keys/orchard,zcash_primitives/circuits
-          - state: all-features
-            flags: --all-features
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2eae45db285e407f22119950686d47e1101e071b # 1.88.0
-      - name: Check all test targets
+        with:
+          components: clippy
+      - name: Check no-default-features
         run: >-
           cargo +1.88.0 check
           -p zcash_keys
           -p zcash_primitives
           -p zcash_proofs
           --all-targets
-          ${{ matrix.flags }}
+          --no-default-features
+      - name: Check transparent-inputs-only
+        if: ${{ !cancelled() }}
+        run: >-
+          cargo +1.88.0 check
+          -p zcash_keys
+          -p zcash_primitives
+          -p zcash_proofs
+          --all-targets
+          --no-default-features
+          --features zcash_keys/transparent-inputs,zcash_primitives/transparent-inputs
+      - name: Check transparent-key-encoding-only
+        if: ${{ !cancelled() }}
+        run: >-
+          cargo +1.88.0 check
+          -p zcash_keys
+          -p zcash_primitives
+          -p zcash_proofs
+          --all-targets
+          --no-default-features
+          --features zcash_keys/transparent-key-encoding
+      - name: Check Sapling-only
+        if: ${{ !cancelled() }}
+        run: >-
+          cargo +1.88.0 check
+          -p zcash_keys
+          -p zcash_primitives
+          -p zcash_proofs
+          --all-targets
+          --no-default-features
+          --features zcash_keys/sapling,zcash_primitives/circuits
+      - name: Check Orchard
+        if: ${{ !cancelled() }}
+        run: >-
+          cargo +1.88.0 check
+          -p zcash_keys
+          -p zcash_primitives
+          -p zcash_proofs
+          --all-targets
+          --no-default-features
+          --features zcash_keys/orchard,zcash_primitives/circuits
+      - name: Check all-features
+        if: ${{ !cancelled() }}
+        run: >-
+          cargo +1.88.0 check
+          -p zcash_keys
+          -p zcash_primitives
+          -p zcash_proofs
+          --all-targets
+          --all-features
+      - name: Clippy each feature of each imported crate
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          for package in zcash_keys zcash_primitives zcash_proofs; do
+            cargo +1.88.0 metadata --no-deps --format-version 1 |
+              jq -r --arg package "$package" \
+                '.packages[] | select(.name == $package) | .features | keys[]' |
+              while IFS= read -r feature; do
+                cargo +1.88.0 clippy -p "$package" \
+                  --no-deps \
+                  --no-default-features \
+                  --features "$feature"
+              done
+          done
+      - name: Install beta Clippy
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        uses: dtolnay/rust-toolchain@482f49bd06e5fc9083e4fd71e1327793b1c839fe # beta
+        with:
+          components: clippy
+      - name: Clippy on beta
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: >-
+          cargo +beta clippy
+          -p zcash_keys
+          -p zcash_primitives
+          -p zcash_proofs
+          --no-deps
+          --all-features
+          --all-targets
+          -- -W clippy::all
 
   librustzcash-no-std:
     name: librustzcash subset / Build ${{ matrix.target }}
@@ -955,65 +957,12 @@ jobs:
           TARGET: ${{ matrix.target }}
         run: cargo +1.88.0 build $PACKAGES --no-default-features --target "$TARGET" --verbose
 
-  librustzcash-clippy-beta:
-    name: librustzcash subset / Clippy on beta
-    needs: changes
-    if: needs.changes.outputs.librustzcash == 'true'
-    continue-on-error: true
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@482f49bd06e5fc9083e4fd71e1327793b1c839fe # beta
-        with:
-          components: clippy
-      - run: >-
-          cargo +beta clippy
-          -p zcash_keys
-          -p zcash_primitives
-          -p zcash_proofs
-          --no-deps
-          --all-features
-          --all-targets
-          -- -W clippy::all
-
-  librustzcash-clippy-features:
-    name: librustzcash subset / Clippy each feature
-    needs: changes
-    if: needs.changes.outputs.librustzcash == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@2eae45db285e407f22119950686d47e1101e071b # 1.88.0
-        with:
-          components: clippy
-      - name: Clippy each feature of each imported crate
-        shell: bash
-        run: |
-          for package in zcash_keys zcash_primitives zcash_proofs; do
-            cargo +1.88.0 metadata --no-deps --format-version 1 |
-              jq -r --arg package "$package" \
-                '.packages[] | select(.name == $package) | .features | keys[]' |
-              while IFS= read -r feature; do
-                cargo +1.88.0 clippy -p "$package" \
-                  --no-deps \
-                  --no-default-features \
-                  --features "$feature"
-              done
-          done
-
   test-success:
     name: test success
     if: always()
     needs:
       - changes
       - rust-checks
-      - msrv
       - formatting
       - halo2-test
       - halo2-platform-smoke
@@ -1034,10 +983,8 @@ jobs:
       - sapling-platform-smoke
       - sapling-no-std
       - librustzcash-test
-      - librustzcash-feature-check
+      - librustzcash-configurations
       - librustzcash-no-std
-      - librustzcash-clippy-beta
-      - librustzcash-clippy-features
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -1049,7 +996,6 @@ jobs:
           # but a failed or cancelled job must still fail this aggregate status.
           allowed-skips: >-
             rust-checks,
-            msrv,
             formatting,
             halo2-test,
             halo2-platform-smoke,
@@ -1070,7 +1016,5 @@ jobs:
             sapling-platform-smoke,
             sapling-no-std,
             librustzcash-test,
-            librustzcash-feature-check,
-            librustzcash-no-std,
-            librustzcash-clippy-beta,
-            librustzcash-clippy-features
+            librustzcash-configurations,
+            librustzcash-no-std
