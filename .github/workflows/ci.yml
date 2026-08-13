@@ -156,7 +156,7 @@ jobs:
               zcash_keys/*|zcash_primitives/*|zcash_proofs/*)
                 librustzcash=true
                 ;;
-              Cargo.toml|Cargo.lock|rust-toolchain.toml|.cargo/*|.github/workflows/ci.yml|.github/workflows/maintenance.yml)
+              Cargo.toml|Cargo.lock|rust-toolchain.toml|.cargo/*|.github/scripts/workspace_packages.py|.github/workflows/ci.yml|.github/workflows/maintenance.yml)
                 shared=true
                 ;;
             esac
