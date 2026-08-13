@@ -4,10 +4,31 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - "**/*.rs"
+      - "**/Cargo.toml"
+      - "**/Cargo.lock"
+      - .cargo/**
+      - .github/workflows/supply-chain.yml
+      - deny.toml
+      - rust-toolchain.toml
+      - supply-chain/**
   push:
     branches:
       - main
+    paths:
+      - "**/*.rs"
+      - "**/Cargo.toml"
+      - "**/Cargo.lock"
+      - .cargo/**
+      - .github/workflows/supply-chain.yml
+      - deny.toml
+      - rust-toolchain.toml
+      - supply-chain/**
   merge_group:
+  schedule:
+    - cron: "0 8 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
