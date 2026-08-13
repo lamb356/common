@@ -97,9 +97,9 @@ jobs:
           librustzcash=false
           shared=false
 
-          # Every workspace member must map to a test group below. Fail closed
-          # when the workspace grows so a new crate cannot inherit a green
-          # aggregate status without ever being compiled.
+          # Trip on workspace membership drift so maintainers revisit this
+          # array, the path-routing cases, and the reverse-dependency graph
+          # together. This does not prove those three mappings are equivalent.
           handled_members=(
             halo2_gadgets
             halo2_legacy_pdqsort
@@ -123,7 +123,7 @@ jobs:
           if ! diff -u \
             <(printf '%s\n' "${handled_members[@]}" | sort) \
             <(printf '%s\n' "${workspace_members[@]}" | sort); then
-            echo "Every workspace member must be assigned to a CI test group" >&2
+            echo "Workspace membership changed; update all CI routing mappings" >&2
             exit 1
           fi
 
