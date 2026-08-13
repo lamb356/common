@@ -34,21 +34,66 @@ if git cat-file -e "${base_sha}^{commit}" 2>/dev/null; then
   base_added=true
 fi
 
+rename_from=()
+rename_to=()
+while IFS= read -r -d '' status; do
+  case "$status" in
+    R*)
+      IFS= read -r -d '' old_path
+      IFS= read -r -d '' new_path
+      rename_from+=("$old_path")
+      rename_to+=("$new_path")
+      ;;
+    *)
+      IFS= read -r -d '' _path
+      ;;
+  esac
+done < <(git diff --name-status -z --find-renames \
+  "$base_sha" "$head_sha" -- '*.md')
+
+base_path_for() {
+  local head_path=$1
+  local index
+
+  for (( index = 0; index < ${#rename_to[@]}; index++ )); do
+    if [[ "${rename_to[$index]}" == "$head_path" ]]; then
+      printf '%s\n' "${rename_from[$index]}"
+      return
+    fi
+  done
+  printf '%s\n' "$head_path"
+}
+
+head_path_for() {
+  local base_path=$1
+  local index
+
+  for (( index = 0; index < ${#rename_from[@]}; index++ )); do
+    if [[ "${rename_from[$index]}" == "$base_path" ]]; then
+      printf '%s\n' "${rename_to[$index]}"
+      return
+    fi
+  done
+  printf '%s\n' "$base_path"
+}
+
 changed_inputs=()
 while IFS= read -r document; do
   [[ -n "$document" ]] || continue
+  base_document=$(base_path_for "$document")
   changed_inputs+=("$head_tree/$document")
-  if [[ "$base_added" == true && -f "$base_tree/$document" ]]; then
-    changed_inputs+=("$base_tree/$document")
+  if [[ "$base_added" == true && -f "$base_tree/$base_document" ]]; then
+    changed_inputs+=("$base_tree/$base_document")
   fi
 done < "$changed_docs_file"
 
 local_inputs=()
 while IFS= read -r -d '' document; do
   [[ "$document" == *.md ]] || continue
+  base_document=$(base_path_for "$document")
   local_inputs+=("$head_tree/$document")
-  if [[ "$base_added" == true && -f "$base_tree/$document" ]]; then
-    local_inputs+=("$base_tree/$document")
+  if [[ "$base_added" == true && -f "$base_tree/$base_document" ]]; then
+    local_inputs+=("$base_tree/$base_document")
   fi
 done < <(git ls-tree -r -z --name-only "$head_sha")
 
@@ -69,6 +114,9 @@ normalize_findings() {
     while IFS=$'\t' read -r source url; do
       [[ "$source" == "$tree_root/"* ]] || continue
       source=${source#"$tree_root/"}
+      if [[ "$tree_root" == "$base_tree" ]]; then
+        source=$(head_path_for "$source")
+      fi
       if [[ "$url" == "$file_prefix"* ]]; then
         url="file://WORKTREE${url#"$file_prefix"}"
       fi
