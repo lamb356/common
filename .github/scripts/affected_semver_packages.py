@@ -8,6 +8,13 @@ import subprocess
 import sys
 
 
+SEMVER_POLICY_FILES = {
+    Path(".github/scripts/affected_semver_packages.py"),
+    Path(".github/scripts/test_affected_semver_packages.py"),
+    Path(".github/workflows/semver.yml"),
+}
+
+
 def is_publishable(package):
     publish = package.get("publish")
     return publish is None or bool(publish)
@@ -45,7 +52,9 @@ def directly_changed_packages(metadata, changed_files):
     workspace_root = Path(metadata["workspace_root"]).resolve()
     changed_paths = [Path(path) for path in changed_files]
 
-    if Path("Cargo.toml") in changed_paths:
+    if Path("Cargo.toml") in changed_paths or SEMVER_POLICY_FILES.intersection(
+        changed_paths
+    ):
         return set(packages)
 
     roots_by_depth = sorted(

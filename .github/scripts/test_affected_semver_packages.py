@@ -92,6 +92,22 @@ class AffectedSemverPackagesTest(unittest.TestCase):
 
         self.assertEqual(affected, ["a-first", "z-last"])
 
+    def test_policy_changes_select_every_publishable_package(self):
+        packages = [
+            self.package("z-last"),
+            self.package("a-first"),
+            self.package("private", publish=[]),
+        ]
+
+        for policy_file in affected_semver_packages.SEMVER_POLICY_FILES:
+            with self.subTest(policy_file=policy_file):
+                affected = affected_semver_packages.affected_publishable_packages(
+                    self.metadata(packages),
+                    changed_files=[str(policy_file)],
+                )
+
+                self.assertEqual(affected, ["a-first", "z-last"])
+
     def test_ignores_lockfiles_and_non_rust_package_files(self):
         packages = [self.package("base")]
 
