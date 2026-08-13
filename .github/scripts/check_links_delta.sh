@@ -11,8 +11,8 @@ base_sha=$1
 head_sha=$2
 changed_docs_file=$3
 scratch=$(mktemp -d)
-base_tree="$scratch/base"
-head_tree="$scratch/head"
+base_tree=$(mktemp -d "$scratch/base.XXXXXX")
+head_tree=$(mktemp -d "$scratch/head.XXXXXX")
 base_added=false
 head_added=false
 
