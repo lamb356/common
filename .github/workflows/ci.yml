@@ -369,15 +369,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        stage: [stable, beta, nightly]
+        stage: [stable, nightly]
         os: [ubuntu-latest, windows-latest, macOS-latest]
         include:
           - stage: stable
             features: ""
             name_suffix: ""
-          - stage: beta
-            features: beta
-            name_suffix: " with beta features"
           - stage: nightly
             features: nightly
             name_suffix: " with nightly features"
@@ -413,12 +410,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        stage: [stable, beta, nightly]
+        stage: [stable, nightly]
         include:
           - stage: stable
             name_suffix: ""
-          - stage: beta
-            name_suffix: " with beta features"
           - stage: nightly
             name_suffix: " with nightly features"
     steps:
