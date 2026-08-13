@@ -10,6 +10,7 @@ on:
       - .github/lychee.toml
       - .github/markdownlint.yml
       - .github/scripts/check_markdown_delta.sh
+      - .github/scripts/test_check_markdown_delta.sh
       - .github/workflows/docs.yml
   push:
     branches:
@@ -20,6 +21,7 @@ on:
       - .github/lychee.toml
       - .github/markdownlint.yml
       - .github/scripts/check_markdown_delta.sh
+      - .github/scripts/test_check_markdown_delta.sh
       - .github/workflows/docs.yml
 
 permissions:
@@ -99,6 +101,7 @@ jobs:
             .github/lychee.toml \
             .github/markdownlint.yml \
             .github/scripts/check_markdown_delta.sh \
+            .github/scripts/test_check_markdown_delta.sh \
             .github/workflows/docs.yml)
 
           {
@@ -164,6 +167,10 @@ jobs:
       - name: Install markdownlint
         if: steps.docs.outputs.has_check_docs == 'true' || steps.docs.outputs.policy_changed == 'true'
         run: npm install --global markdownlint-cli@0.49.1 # zizmor: ignore[adhoc-packages] -- exact pinned, read-only documentation linter
+
+      - name: Test Markdown delta policy
+        if: steps.docs.outputs.policy_changed == 'true'
+        run: bash .github/scripts/test_check_markdown_delta.sh
 
       - name: Lint changed Markdown without inheriting baseline findings
         if: steps.docs.outputs.has_check_docs == 'true'
