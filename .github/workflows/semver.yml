@@ -48,7 +48,7 @@ jobs:
         run: |
           workspace_packages=$(python3 .github/scripts/workspace_packages.py)
           packages=$(jq -c \
-            '[.[] | select(.publish == null or (.publish | type == "array" and length > 0)) | .name]' \
+            '[.[] | select(.publish == null or .publish == true or (.publish | type == "array" and length > 0)) | .name]' \
             <<< "$workspace_packages")
           if [[ "$packages" == '[]' ]]; then
             echo "The workspace has no publishable packages" >&2
