@@ -8,6 +8,7 @@ on:
       - "**/*.md"
       - .github/codespellrc
       - .github/markdownlint.yml
+      - .github/scripts/check_links_delta.sh
       - .github/scripts/check_markdown_delta.sh
       - .github/workflows/docs.yml
   push:
@@ -17,6 +18,7 @@ on:
       - "**/*.md"
       - .github/codespellrc
       - .github/markdownlint.yml
+      - .github/scripts/check_links_delta.sh
       - .github/scripts/check_markdown_delta.sh
       - .github/workflows/docs.yml
   merge_group:
@@ -95,6 +97,7 @@ jobs:
             "$base_sha" "$head_sha" -- \
             .github/codespellrc \
             .github/markdownlint.yml \
+            .github/scripts/check_links_delta.sh \
             .github/scripts/check_markdown_delta.sh \
             .github/workflows/docs.yml)
 
@@ -184,13 +187,26 @@ jobs:
         with:
           tool: lychee@0.24.2
 
-      - name: Check links in changed Markdown files
+      - name: Check newly introduced link failures
         if: steps.docs.outputs.has_check_docs == 'true'
         shell: bash
-        run: |
-          mapfile -t docs < "$RUNNER_TEMP/check-docs.txt"
-          lychee --no-progress --exclude-all-private "${docs[@]}"
+        env:
+          BASE_SHA: ${{ steps.docs.outputs.base_sha }}
+          HEAD_SHA: ${{ steps.docs.outputs.head_sha }}
+        run: >-
+          bash .github/scripts/check_links_delta.sh
+          "$BASE_SHA"
+          "$HEAD_SHA"
+          "$RUNNER_TEMP/check-docs.txt"
 
-      - name: Validate link checker invocation
+      - name: Validate link checker policy
         if: steps.docs.outputs.policy_changed == 'true'
-        run: lychee --no-progress --exclude-all-private "$RUNNER_TEMP/docs-smoke.md"
+        shell: bash
+        env:
+          HEAD_SHA: ${{ steps.docs.outputs.head_sha }}
+        run: |
+          printf 'README.md\n' > "$RUNNER_TEMP/link-smoke-docs.txt"
+          bash .github/scripts/check_links_delta.sh \
+            "$HEAD_SHA" \
+            "$HEAD_SHA" \
+            "$RUNNER_TEMP/link-smoke-docs.txt"
