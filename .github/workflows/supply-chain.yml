@@ -4,10 +4,31 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - "**/*.rs"
+      - "**/Cargo.toml"
+      - "**/Cargo.lock"
+      - .cargo/**
+      - .github/workflows/supply-chain.yml
+      - deny.toml
+      - rust-toolchain.toml
+      - supply-chain/**
   push:
     branches:
       - main
+    paths:
+      - "**/*.rs"
+      - "**/Cargo.toml"
+      - "**/Cargo.lock"
+      - .cargo/**
+      - .github/workflows/supply-chain.yml
+      - deny.toml
+      - rust-toolchain.toml
+      - supply-chain/**
   merge_group:
+  schedule:
+    - cron: "0 8 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -34,23 +55,23 @@ jobs:
 
       - name: Check dependency policy
         if: ${{ !cancelled() }}
-        run: cargo deny --workspace check bans licenses sources
+        run: cargo deny --locked --workspace check bans licenses sources
 
       # New advisories should be visible immediately without making an
       # unrelated pull request fail before an upgrade is available.
       - name: Check dependency advisories
         if: ${{ !cancelled() }}
         continue-on-error: true
-        run: cargo deny --workspace check advisories
+        run: cargo deny --locked --workspace check advisories
 
       - name: Check all-feature dependency policy
         if: ${{ !cancelled() }}
-        run: cargo deny --workspace --all-features check bans licenses sources
+        run: cargo deny --locked --workspace --all-features check bans licenses sources
 
       - name: Check all-feature dependency advisories
         if: ${{ !cancelled() }}
         continue-on-error: true
-        run: cargo deny --workspace --all-features check advisories
+        run: cargo deny --locked --workspace --all-features check advisories
 
       - name: Check dependency audits
         if: ${{ !cancelled() }}

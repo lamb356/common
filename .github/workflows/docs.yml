@@ -7,8 +7,10 @@ on:
     paths:
       - "**/*.md"
       - .github/codespellrc
+      - .github/lychee.toml
       - .github/markdownlint.yml
       - .github/scripts/check_markdown_delta.sh
+      - .github/scripts/test_check_markdown_delta.sh
       - .github/workflows/docs.yml
   push:
     branches:
@@ -16,10 +18,11 @@ on:
     paths:
       - "**/*.md"
       - .github/codespellrc
+      - .github/lychee.toml
       - .github/markdownlint.yml
       - .github/scripts/check_markdown_delta.sh
+      - .github/scripts/test_check_markdown_delta.sh
       - .github/workflows/docs.yml
-  merge_group:
 
 permissions:
   contents: read
@@ -46,15 +49,18 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           MERGE_BASE_SHA: ${{ github.event.merge_group.base_sha }}
           MERGE_HEAD_SHA: ${{ github.event.merge_group.head_sha }}
-          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_MERGE_SHA: ${{ github.sha }}
           PUSH_BASE_SHA: ${{ github.event.before }}
           PUSH_HEAD_SHA: ${{ github.sha }}
         run: |
           case "$EVENT_NAME" in
             pull_request)
-              base_sha=$PR_BASE_SHA
-              head_sha=$PR_HEAD_SHA
+              # The checked-out pull-request merge commit has the current base
+              # as its first parent, so this pair describes the tree that would
+              # actually land without pulling unrelated main-side changes into
+              # the diff.
+              head_sha=$PR_MERGE_SHA
+              base_sha=$(git rev-parse "${head_sha}^1")
               ;;
             push)
               base_sha=$PUSH_BASE_SHA
@@ -78,8 +84,6 @@ jobs:
             # Treat a new ref, or an unreachable pre-force-push base, as a diff
             # from the empty tree so documentation checks fail conservatively.
             base_sha=$(git hash-object -t tree /dev/null)
-          elif [[ "$EVENT_NAME" == pull_request ]]; then
-            base_sha=$(git merge-base "$base_sha" "$head_sha")
           fi
           changed=$(git diff --name-status --no-renames "$base_sha" "$head_sha" -- '*.md')
 
@@ -94,8 +98,10 @@ jobs:
           policy_changed=$(git diff --name-only --no-renames \
             "$base_sha" "$head_sha" -- \
             .github/codespellrc \
+            .github/lychee.toml \
             .github/markdownlint.yml \
             .github/scripts/check_markdown_delta.sh \
+            .github/scripts/test_check_markdown_delta.sh \
             .github/workflows/docs.yml)
 
           {
@@ -138,7 +144,11 @@ jobs:
         run: |
           added_lines=$(
             git diff --unified=0 --no-renames "$BASE_SHA" "$HEAD_SHA" -- '*.md' \
-              | awk '/^\+\+\+ / { next } /^\+/ { sub(/^\+/, ""); print }'
+              | awk '
+                  /^diff --git / { in_hunk = 0; next }
+                  /^@@ / { in_hunk = 1; next }
+                  in_hunk && /^\+/ { sub(/^\+/, ""); print }
+                '
           )
           if [[ -n "$added_lines" ]]; then
             printf '%s\n' "$added_lines" | codespell --config .github/codespellrc -
@@ -152,11 +162,15 @@ jobs:
         if: steps.docs.outputs.has_check_docs == 'true' || steps.docs.outputs.policy_changed == 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: "24"
+          node-version: "22"
 
       - name: Install markdownlint
         if: steps.docs.outputs.has_check_docs == 'true' || steps.docs.outputs.policy_changed == 'true'
         run: npm install --global markdownlint-cli@0.49.1 # zizmor: ignore[adhoc-packages] -- exact pinned, read-only documentation linter
+
+      - name: Test Markdown delta policy
+        if: steps.docs.outputs.policy_changed == 'true'
+        run: bash .github/scripts/test_check_markdown_delta.sh
 
       - name: Lint changed Markdown without inheriting baseline findings
         if: steps.docs.outputs.has_check_docs == 'true'
@@ -178,19 +192,30 @@ jobs:
           printf '# Configuration smoke test\n' > "$RUNNER_TEMP/docs-smoke.md"
           markdownlint --config .github/markdownlint.yml "$RUNNER_TEMP/docs-smoke.md"
 
-      - name: Install link checker
-        if: steps.docs.outputs.has_check_docs == 'true' || steps.docs.outputs.policy_changed == 'true'
-        uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
+      - name: Restore lychee cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          tool: lychee@0.24.2
+          path: .lycheecache
+          key: cache-lychee-${{ github.sha }}
+          restore-keys: cache-lychee-
 
-      - name: Check links in changed Markdown files
-        if: steps.docs.outputs.has_check_docs == 'true'
-        shell: bash
-        run: |
-          mapfile -t docs < "$RUNNER_TEMP/check-docs.txt"
-          lychee --no-progress --exclude-all-private "${docs[@]}"
+      - name: Check links
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
+        with:
+          args: >-
+            --verbose
+            --no-progress
+            --cache
+            --max-cache-age 2d
+            --config .github/lychee.toml
+            "**/*.md"
+          fail: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Validate link checker invocation
-        if: steps.docs.outputs.policy_changed == 'true'
-        run: lychee --no-progress --exclude-all-private "$RUNNER_TEMP/docs-smoke.md"
+      - name: Save lychee cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .lycheecache
+          key: cache-lychee-${{ github.sha }}

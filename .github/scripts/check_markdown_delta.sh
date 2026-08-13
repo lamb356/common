@@ -13,6 +13,10 @@ config=$3
 changed_docs_file=$4
 scratch=$(mktemp -d)
 trap 'rm -rf "$scratch"' EXIT
+rename_map="$scratch/renames.txt"
+
+git diff --name-status --find-renames --diff-filter=R \
+  "$base_sha" "$head_sha" -- '*.md' > "$rename_map"
 
 run_markdownlint() {
   local document=$1
@@ -40,12 +44,20 @@ while IFS= read -r document; do
   base_findings="$scratch/base-$index.txt"
   head_findings="$scratch/head-$index.txt"
   new_findings="$scratch/new-$index.txt"
+  base_document_path=$document
+
+  while IFS=$'\t' read -r status old_document new_document; do
+    if [[ "$status" == R* && "$new_document" == "$document" ]]; then
+      base_document_path=$old_document
+      break
+    fi
+  done < "$rename_map"
 
   git show "$head_sha:$document" > "$head_document"
   run_markdownlint "$head_document" "$head_findings"
 
-  if git cat-file -e "$base_sha:$document" 2>/dev/null; then
-    git show "$base_sha:$document" > "$base_document"
+  if git cat-file -e "$base_sha:$base_document_path" 2>/dev/null; then
+    git show "$base_sha:$base_document_path" > "$base_document"
     run_markdownlint "$base_document" "$base_findings"
     comm -13 "$base_findings" "$head_findings" > "$new_findings"
   else

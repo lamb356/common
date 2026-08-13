@@ -97,9 +97,9 @@ jobs:
           librustzcash=false
           shared=false
 
-          # Every workspace member must map to a test group below. Fail closed
-          # when the workspace grows so a new crate cannot inherit a green
-          # aggregate status without ever being compiled.
+          # Trip on workspace membership drift so maintainers revisit this
+          # array, the path-routing cases, and the reverse-dependency graph
+          # together. This does not prove those three mappings are equivalent.
           handled_members=(
             halo2_gadgets
             halo2_legacy_pdqsort
@@ -123,7 +123,7 @@ jobs:
           if ! diff -u \
             <(printf '%s\n' "${handled_members[@]}" | sort) \
             <(printf '%s\n' "${workspace_members[@]}" | sort); then
-            echo "Every workspace member must be assigned to a CI test group" >&2
+            echo "Workspace membership changed; update all CI routing mappings" >&2
             exit 1
           fi
 
@@ -156,7 +156,7 @@ jobs:
               zcash_keys/*|zcash_primitives/*|zcash_proofs/*)
                 librustzcash=true
                 ;;
-              Cargo.toml|Cargo.lock|rust-toolchain.toml|.cargo/*|.github/workflows/ci.yml|.github/workflows/maintenance.yml)
+              Cargo.toml|Cargo.lock|rust-toolchain.toml|.cargo/*|.github/scripts/workspace_packages.py|.github/workflows/ci.yml|.github/workflows/maintenance.yml)
                 shared=true
                 ;;
             esac
@@ -608,8 +608,8 @@ jobs:
 
   # ZcashFoundation/reddsa .github/workflows/main.yml @
   # ad34fbe2eb3c3471f43823407b89f313745d51da
-  reddsa-build:
-    name: reddsa / Build
+  reddsa-test:
+    name: reddsa / Test all features
     needs: changes
     if: needs.changes.outputs.reddsa == 'true'
     runs-on: ubuntu-latest
@@ -619,7 +619,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
-      - run: cargo +stable build -p reddsa
+      - run: cargo +stable test -p reddsa --all-features --locked
 
   reddsa-no-std:
     name: reddsa / Build no_std
@@ -901,7 +901,7 @@ jobs:
       - pasta-test
       - pasta-test-32-bit
       - pasta-no-std
-      - reddsa-build
+      - reddsa-test
       - reddsa-no-std
       - redjubjub-test
       - redjubjub-no-std
@@ -933,7 +933,7 @@ jobs:
             pasta-test,
             pasta-test-32-bit,
             pasta-no-std,
-            reddsa-build,
+            reddsa-test,
             reddsa-no-std,
             redjubjub-test,
             redjubjub-no-std,
