@@ -85,7 +85,6 @@ jobs:
             "$base_sha" "$head_sha" -- \
             .github/codespellrc \
             .github/markdownlint.yml \
-            .github/scripts/check_links_delta.sh \
             .github/scripts/check_markdown_delta.sh \
             .github/workflows/docs.yml)
 
@@ -170,17 +169,18 @@ jobs:
           markdownlint --config .github/markdownlint.yml "$RUNNER_TEMP/docs-smoke.md"
 
       - name: Install link checker
+        if: steps.docs.outputs.has_check_docs == 'true' || steps.docs.outputs.policy_changed == 'true'
         uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
         with:
           tool: lychee@0.24.2
 
-      - name: Check newly introduced link failures
+      - name: Check links in changed Markdown files
+        if: steps.docs.outputs.has_check_docs == 'true'
         shell: bash
-        env:
-          BASE_SHA: ${{ steps.docs.outputs.base_sha }}
-          HEAD_SHA: ${{ steps.docs.outputs.head_sha }}
-        run: >-
-          bash .github/scripts/check_links_delta.sh
-          "$BASE_SHA"
-          "$HEAD_SHA"
-          "$RUNNER_TEMP/check-docs.txt"
+        run: |
+          mapfile -t docs < "$RUNNER_TEMP/check-docs.txt"
+          lychee --no-progress --exclude-all-private "${docs[@]}"
+
+      - name: Validate link checker invocation
+        if: steps.docs.outputs.policy_changed == 'true'
+        run: lychee --no-progress --exclude-all-private "$RUNNER_TEMP/docs-smoke.md"
