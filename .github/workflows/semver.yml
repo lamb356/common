@@ -52,14 +52,15 @@ jobs:
         env:
           MERGE_BASE_SHA: ${{ github.event.merge_group.base_sha }}
           MERGE_HEAD_SHA: ${{ github.event.merge_group.head_sha }}
-          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_MERGE_SHA: ${{ github.sha }}
         run: |
           python3 .github/scripts/test_affected_semver_packages.py
 
           case "$GITHUB_EVENT_NAME" in
             pull_request)
+              base_sha=$(git rev-parse "${PR_MERGE_SHA}^1")
               packages=$(python3 .github/scripts/affected_semver_packages.py \
-                --base "$PR_BASE_SHA" --head "$GITHUB_SHA")
+                --base "$base_sha" --head "$PR_MERGE_SHA")
               ;;
             merge_group)
               packages=$(python3 .github/scripts/affected_semver_packages.py \
