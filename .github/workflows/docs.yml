@@ -49,14 +49,18 @@ jobs:
           MERGE_BASE_SHA: ${{ github.event.merge_group.base_sha }}
           MERGE_HEAD_SHA: ${{ github.event.merge_group.head_sha }}
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_MERGE_SHA: ${{ github.sha }}
           PUSH_BASE_SHA: ${{ github.event.before }}
           PUSH_HEAD_SHA: ${{ github.sha }}
         run: |
           case "$EVENT_NAME" in
             pull_request)
               base_sha=$PR_BASE_SHA
-              head_sha=$PR_HEAD_SHA
+              # The checked-out pull-request merge commit has the current base
+              # as its first parent, so this pair describes the tree that would
+              # actually land without pulling unrelated main-side changes into
+              # the diff.
+              head_sha=$PR_MERGE_SHA
               ;;
             push)
               base_sha=$PUSH_BASE_SHA
@@ -80,8 +84,6 @@ jobs:
             # Treat a new ref, or an unreachable pre-force-push base, as a diff
             # from the empty tree so documentation checks fail conservatively.
             base_sha=$(git hash-object -t tree /dev/null)
-          elif [[ "$EVENT_NAME" == pull_request ]]; then
-            base_sha=$(git merge-base "$base_sha" "$head_sha")
           fi
           changed=$(git diff --name-status --no-renames "$base_sha" "$head_sha" -- '*.md')
 
