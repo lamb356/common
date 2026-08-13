@@ -26,6 +26,7 @@ exclude_path = [
 accept = ["200", "202", "204", "206", "301", "302", "307", "308", "429"]
 timeout = 30
 exclude_private = true
+exclude_link_local = true
 exclude_loopback = true
 cache = true
 max_cache_age = "7d"
