@@ -1,0 +1,3 @@
+[codespell]
+ignore-words-list = advices,crate,Groth,groth,inout,librustzcash,nullifier,nullifiers,orchard,proptest,re-use,reddsa,redjubjub,sapling,ser,sinsemilla,zcash,Zcash
+quiet-level = 2
