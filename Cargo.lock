@@ -3973,6 +3973,7 @@ name = "zakura-sinsemilla"
 version = "1.0.0-rc.1"
 dependencies = [
  "group",
+ "lazy_static",
  "subtle",
  "zakura-pasta-curves",
 ]

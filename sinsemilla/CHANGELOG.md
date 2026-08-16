@@ -8,6 +8,8 @@ and this project adheres to Rust's notion of
 
 ## [Unreleased]
 
+- The precomputed Sinsemilla $S$ generators are decoded once and reused across
+  hashes instead of validating their coordinates for every message word.
 - Forked from upstream `sinsemilla` and renamed to `zakura-sinsemilla`; this changelog starts
   fresh for the Zakura fork's initial release.
 - Restarted the version lineage at 1.0.0, leaving behind the inherited upstream
