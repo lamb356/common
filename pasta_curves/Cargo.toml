@@ -24,6 +24,11 @@ autobins = false
 autoexamples = false
 autotests = false
 autobenches = false
+exclude = [
+    "/.gitignore",
+    "/rust-toolchain.toml",
+    "/sage",
+]
 description = "Implementation of the Pallas and Vesta (Pasta) curve cycle"
 documentation = "https://docs.rs/zakura-pasta-curves"
 readme = "README.md"

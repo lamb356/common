@@ -24,6 +24,14 @@ autobins = false
 autoexamples = false
 autotests = false
 autobenches = false
+exclude = [
+    "/.gitignore",
+    "/Dockerfile",
+    "/cloudbuild.yaml",
+    "/codecov.yml",
+    "/rfcs",
+    "/zcash-frost-audit-report-20210323.pdf",
+]
 description = "A standalone implementation of the RedJubjub signature scheme."
 readme = "README.md"
 keywords = [

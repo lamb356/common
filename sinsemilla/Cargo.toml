@@ -24,6 +24,7 @@ autobins = false
 autoexamples = false
 autotests = false
 autobenches = false
+exclude = ["/.gitignore"]
 description = "A collision-resistant circuit-efficient hash function"
 readme = "README.md"
 categories = ["cryptography"]

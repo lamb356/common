@@ -26,6 +26,7 @@ readme = "README.md"
 categories = ["algorithms"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/zakura-core/libraries"
+exclude = ["/.gitignore"]
 
 [lib]
 name = "halo2_legacy_pdqsort"
