@@ -38,6 +38,11 @@ path = "src/lib.rs"
 [dependencies.group]
 version = "0.13"
 
+[dependencies.lazy_static]
+version = "1"
+features = ["spin_no_std"]
+default-features = false
+
 [dependencies.pasta_curves]
 path = "../pasta_curves"
 version = "1.0.0-rc.1"
