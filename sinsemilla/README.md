@@ -1,4 +1,16 @@
-# Sinsemilla
+# zakura-sinsemilla
+
+`zakura-sinsemilla` is the [Zakura](https://github.com/zakura-core/zakura) fork
+of the upstream [`sinsemilla`](https://crates.io/crates/sinsemilla) crate from
+[zcash/sinsemilla](https://github.com/zcash/sinsemilla), maintained in
+[zakura-core/libraries](https://github.com/zakura-core/libraries). The library
+target keeps the upstream name, so `use sinsemilla::…` paths are unchanged. Use
+it as a drop-in replacement by renaming the dependency:
+
+```toml
+[dependencies]
+sinsemilla = { package = "zakura-sinsemilla", version = "0.1" }
+```
 
 Sinsemilla is a collision-resistant hash function and commitment scheme designed
 to be efficient in algebraic circuit models that support lookups, such as PLONK

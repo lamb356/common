@@ -1,3 +1,16 @@
+This crate, `zakura-reddsa`, is the
+[Zakura](https://github.com/zakura-core/zakura) fork of the upstream
+[`reddsa`](https://crates.io/crates/reddsa) crate from
+[ZcashFoundation/reddsa](https://github.com/ZcashFoundation/reddsa), maintained
+in [zakura-core/libraries](https://github.com/zakura-core/libraries). The
+library target keeps the upstream name, so `use reddsa::…` paths are unchanged.
+Use it as a drop-in replacement by renaming the dependency:
+
+```toml
+[dependencies]
+reddsa = { package = "zakura-reddsa", version = "0.5" }
+```
+
 A minimal [RedDSA][reddsa] implementation for use in Zcash.
 
 Two specializations of RedDSA are used in Zcash: RedJubjub and

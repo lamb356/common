@@ -1,6 +1,21 @@
-# halo2_legacy_pdqsort [![Crates.io](https://img.shields.io/crates/v/halo2_legacy_pdqsort.svg)](https://crates.io/crates/halo2_legacy_pdqsort) #
+# zakura-halo2-legacy-pdqsort [![Crates.io](https://img.shields.io/crates/v/zakura-halo2-legacy-pdqsort.svg)](https://crates.io/crates/zakura-halo2-legacy-pdqsort) #
 
-## [Documentation](https://docs.rs/halo2_legacy_pdqsort)
+`zakura-halo2-legacy-pdqsort` is the
+[Zakura](https://github.com/zakura-core/zakura) fork of the upstream
+[`halo2_legacy_pdqsort`](https://crates.io/crates/halo2_legacy_pdqsort) crate
+from
+[zcash/halo2_legacy_pdqsort](https://github.com/zcash/halo2_legacy_pdqsort),
+maintained in
+[zakura-core/libraries](https://github.com/zakura-core/libraries). The library
+target keeps the upstream name, so `use halo2_legacy_pdqsort::…` paths are
+unchanged. Use it as a drop-in replacement by renaming the dependency:
+
+```toml
+[dependencies]
+halo2_legacy_pdqsort = { package = "zakura-halo2-legacy-pdqsort", version = "0.1" }
+```
+
+## [Documentation](https://docs.rs/zakura-halo2-legacy-pdqsort)
 
 ## Description
 

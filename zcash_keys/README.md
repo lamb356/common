@@ -1,4 +1,16 @@
-# zcash_keys
+# zakura-keys
+
+`zakura-keys` is the [Zakura](https://github.com/zakura-core/zakura) fork of
+the upstream [`zcash_keys`](https://crates.io/crates/zcash_keys) crate from
+[zcash/librustzcash](https://github.com/zcash/librustzcash), maintained in
+[zakura-core/libraries](https://github.com/zakura-core/libraries). The library
+target keeps the upstream name, so `use zcash_keys::…` paths are unchanged. Use
+it as a drop-in replacement by renaming the dependency:
+
+```toml
+[dependencies]
+zcash_keys = { package = "zakura-keys", version = "0.16" }
+```
 
 This library contains Rust structs and traits for Zcash key and address parsing
 and encoding.
