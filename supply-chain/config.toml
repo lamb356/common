@@ -395,6 +395,10 @@ criteria = "safe-to-deploy"
 version = "0.1.1"
 criteria = "safe-to-deploy"
 
+[[exemptions.fastrand]]
+version = "2.5.0"
+criteria = "safe-to-deploy"
+
 [[exemptions.ff]]
 version = "0.13.1"
 criteria = "safe-to-deploy"
@@ -461,6 +465,10 @@ criteria = "safe-to-deploy"
 
 [[exemptions.getrandom]]
 version = "0.2.17"
+criteria = "safe-to-deploy"
+
+[[exemptions.getrandom]]
+version = "0.4.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.getset]]
@@ -592,7 +600,7 @@ version = "0.1.19"
 criteria = "safe-to-deploy"
 
 [[exemptions.linux-raw-sys]]
-version = "0.3.8"
+version = "0.12.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.litrs]]
@@ -763,6 +771,10 @@ criteria = "safe-to-deploy"
 version = "0.23.1"
 criteria = "safe-to-run"
 
+[[exemptions.r-efi]]
+version = "6.0.0"
+criteria = "safe-to-deploy"
+
 [[exemptions.radium]]
 version = "0.7.0"
 criteria = "safe-to-deploy"
@@ -781,10 +793,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.reborrow]]
 version = "0.5.5"
-criteria = "safe-to-deploy"
-
-[[exemptions.redox_syscall]]
-version = "0.3.5"
 criteria = "safe-to-deploy"
 
 [[exemptions.redox_syscall]]
@@ -828,7 +836,7 @@ version = "0.1.28"
 criteria = "safe-to-deploy"
 
 [[exemptions.rustix]]
-version = "0.37.28"
+version = "1.1.4"
 criteria = "safe-to-deploy"
 
 [[exemptions.rustls]]
@@ -1132,10 +1140,6 @@ version = "0.5.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.windows-sys]]
-version = "0.48.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.windows-sys]]
 version = "0.52.0"
 criteria = "safe-to-deploy"
 
@@ -1144,15 +1148,7 @@ version = "0.61.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.windows-targets]]
-version = "0.48.5"
-criteria = "safe-to-deploy"
-
-[[exemptions.windows-targets]]
 version = "0.52.6"
-criteria = "safe-to-deploy"
-
-[[exemptions.windows_aarch64_gnullvm]]
-version = "0.48.5"
 criteria = "safe-to-deploy"
 
 [[exemptions.windows_aarch64_gnullvm]]
@@ -1160,15 +1156,7 @@ version = "0.52.6"
 criteria = "safe-to-deploy"
 
 [[exemptions.windows_aarch64_msvc]]
-version = "0.48.5"
-criteria = "safe-to-deploy"
-
-[[exemptions.windows_aarch64_msvc]]
 version = "0.52.6"
-criteria = "safe-to-deploy"
-
-[[exemptions.windows_i686_gnu]]
-version = "0.48.5"
 criteria = "safe-to-deploy"
 
 [[exemptions.windows_i686_gnu]]
@@ -1180,15 +1168,7 @@ version = "0.52.6"
 criteria = "safe-to-deploy"
 
 [[exemptions.windows_i686_msvc]]
-version = "0.48.5"
-criteria = "safe-to-deploy"
-
-[[exemptions.windows_i686_msvc]]
 version = "0.52.6"
-criteria = "safe-to-deploy"
-
-[[exemptions.windows_x86_64_gnu]]
-version = "0.48.5"
 criteria = "safe-to-deploy"
 
 [[exemptions.windows_x86_64_gnu]]
@@ -1196,15 +1176,7 @@ version = "0.52.6"
 criteria = "safe-to-deploy"
 
 [[exemptions.windows_x86_64_gnullvm]]
-version = "0.48.5"
-criteria = "safe-to-deploy"
-
-[[exemptions.windows_x86_64_gnullvm]]
 version = "0.52.6"
-criteria = "safe-to-deploy"
-
-[[exemptions.windows_x86_64_msvc]]
-version = "0.48.5"
 criteria = "safe-to-deploy"
 
 [[exemptions.windows_x86_64_msvc]]
