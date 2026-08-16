@@ -1,37 +1,33 @@
-# zakura-libraries
+# `zakura-core/libraries` <img src="https://zakura.com/zakura-flower-v1.svg" alt="Zakura logo" height="32">
 
-This workspace contains libraries used in [zakura](https://github.com/zakura-core/zakura), originally forked from the ZCash proving stack and librustzcash, for maintenance and further development by the Zakura project. Zakura never pull in any of the originally-forked dependencies.
+This repository contains various Rust libraries used in [Zakura](https://github.com/zakura-core/zakura), many of which are forked from [librustzcash](https://github.com/zcash/librustzcash) and other community crates.
 
-Each crate is named after its zakura-branded crates.io reservation (see the `reserved` repository for the full mapping), listed below next to the upstream name. Directory names and library target names keep the upstream names, so `use` paths are unchanged.
+## Transactions and keys
 
-## From librustzcash
+- [`zakura-primitives`](zcash_primitives) (a [fork](https://github.com/zcash/librustzcash/tree/main/zcash_primitives) of `zcash_primitives`)
+- [`zakura-keys`](zcash_keys) (a [fork](https://github.com/zcash/librustzcash/tree/main/zcash_keys) of `zcash_keys`)
 
-The [librustzcash](https://github.com/zcash/librustzcash) members consumed by Zakura that depend on the proving stack:
+## Shielded protocols
 
-- `zcash_primitives` (`zakura-primitives`) — transaction structure, builders, txids, and sighashes
-- `zcash_keys` (`zakura-keys`) — key derivation and address encoding
-- `zcash_proofs` (`zakura-proofs`) — the Sapling Groth16 prover and proving-parameter handling
+- [`zakura-orchard`](orchard) (a [fork](https://github.com/zcash/orchard) of `orchard`)
+- [`zakura-sapling-crypto`](sapling-crypto) (a [fork](https://github.com/zcash/sapling-crypto) of `sapling-crypto`)
+- [`zakura-proofs`](zcash_proofs) (a [fork](https://github.com/zcash/librustzcash/tree/main/zcash_proofs) of `zcash_proofs`)
 
-## Core Crypto Libraries
+## The halo2 proving system
 
-- `pasta_curves` (`zakura-pasta-curves`) — the Pallas/Vesta curve cycle underlying Orchard and halo2
-- `sinsemilla` (`zakura-sinsemilla`) — the Sinsemilla hash function (Pallas-based)
-- `reddsa` (`zakura-reddsa`) — RedDSA signatures: RedPallas (Orchard) and RedJubjub (Sapling)
+- [`zakura-halo2-proofs`](halo2_proofs) (a [fork](https://github.com/zcash/halo2/tree/main/halo2_proofs) of `halo2_proofs`)
+- [`zakura-halo2-gadgets`](halo2_gadgets) (a [fork](https://github.com/zcash/halo2/tree/main/halo2_gadgets) of `halo2_gadgets`)
+- [`zakura-halo2-poseidon`](halo2_poseidon) (a [fork](https://github.com/zcash/halo2/tree/main/halo2_poseidon) of `halo2_poseidon`)
+- [`zakura-halo2-legacy-pdqsort`](halo2_legacy_pdqsort) (a [fork](https://github.com/zcash/halo2_legacy_pdqsort) of `halo2_legacy_pdqsort`)
 
-## The Orchard Proving Stack
+## Curves, hashes, and signatures
 
-- `halo2_proofs` (`zakura-halo2-proofs`) — the halo2 proving system
-- `halo2_gadgets` (`zakura-halo2-gadgets`) — circuit gadgets built on halo2_proofs
-- `halo2_poseidon` (`zakura-halo2-poseidon`) — the Poseidon hash gadget
-- `halo2_legacy_pdqsort` (`zakura-halo2-legacy-pdqsort`) — pinned sort behavior for the legacy V1 floor planner
-- `orchard` (`zakura-orchard`) — the Orchard shielded protocol and circuit
+- [`zakura-pasta-curves`](pasta_curves) (a [fork](https://github.com/zcash/pasta_curves) of `pasta_curves`)
+- [`zakura-sinsemilla`](sinsemilla) (a [fork](https://github.com/zcash/sinsemilla) of `sinsemilla`)
+- [`zakura-reddsa`](reddsa) (a [fork](https://github.com/ZcashFoundation/reddsa) of `reddsa`)
+- [`zakura-redjubjub`](redjubjub) (a [fork](https://github.com/ZcashFoundation/redjubjub) of `redjubjub`)
 
-## The Sapling Proving Stack
-
-Due to Sapling's redjubjub crate being a wrapper around reddsa, these crates also had to be forked:
-
-- `redjubjub` (`zakura-redjubjub`) — RedJubjub signature wrapper over reddsa
-- `sapling-crypto` (`zakura-sapling-crypto`) — the Sapling shielded protocol
+`redjubjub` is a thin wrapper over `reddsa`, so it is forked along with it.
 
 ## License
 
