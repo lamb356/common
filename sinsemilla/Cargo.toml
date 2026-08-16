@@ -12,7 +12,7 @@
 [package]
 edition = "2021"
 rust-version = "1.88"
-name = "sinsemilla"
+name = "zakura-sinsemilla"
 version = "0.1.0"
 authors = [
     "Jack Grigg <jack@electriccoin.co>",
@@ -43,6 +43,7 @@ path = "../pasta_curves"
 version = "0.5"
 features = ["alloc"]
 default-features = false
+package = "zakura-pasta-curves"
 
 [dependencies.subtle]
 version = "2.3"

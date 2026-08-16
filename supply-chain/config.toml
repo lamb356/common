@@ -28,43 +28,43 @@ url = "https://raw.githubusercontent.com/zcash/rust-ecosystem/main/supply-chain/
 [imports.zcashd]
 url = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[policy.halo2_gadgets]
+[policy.zakura-halo2-gadgets]
 audit-as-crates-io = false
 
-[policy.halo2_legacy_pdqsort]
+[policy.zakura-halo2-legacy-pdqsort]
 audit-as-crates-io = false
 
-[policy.halo2_poseidon]
+[policy.zakura-halo2-poseidon]
 audit-as-crates-io = false
 
-[policy.halo2_proofs]
+[policy.zakura-halo2-proofs]
 audit-as-crates-io = false
 
-[policy.orchard]
+[policy.zakura-keys]
 audit-as-crates-io = false
 
-[policy.pasta_curves]
+[policy.zakura-orchard]
 audit-as-crates-io = false
 
-[policy.reddsa]
+[policy.zakura-pasta-curves]
 audit-as-crates-io = false
 
-[policy.redjubjub]
+[policy.zakura-primitives]
 audit-as-crates-io = false
 
-[policy.sapling-crypto]
+[policy.zakura-proofs]
 audit-as-crates-io = false
 
-[policy.sinsemilla]
+[policy.zakura-reddsa]
 audit-as-crates-io = false
 
-[policy.zcash_keys]
+[policy.zakura-redjubjub]
 audit-as-crates-io = false
 
-[policy.zcash_primitives]
+[policy.zakura-sapling-crypto]
 audit-as-crates-io = false
 
-[policy.zcash_proofs]
+[policy.zakura-sinsemilla]
 audit-as-crates-io = false
 
 [[exemptions.addr2line]]

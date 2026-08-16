@@ -12,7 +12,7 @@
 [package]
 edition = "2021"
 rust-version = "1.88"
-name = "redjubjub"
+name = "zakura-redjubjub"
 version = "0.8.0"
 authors = [
     "Henry de Valence <hdevalence@hdevalence.ca>",
@@ -76,6 +76,7 @@ path = "../reddsa"
 version = "0.5.0"
 features = ["alloc"]
 default-features = false
+package = "zakura-reddsa"
 
 [dependencies.serde]
 version = "1"

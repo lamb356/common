@@ -12,7 +12,7 @@
 [package]
 edition = "2021"
 rust-version = "1.88"
-name = "halo2_legacy_pdqsort"
+name = "zakura-halo2-legacy-pdqsort"
 version = "0.1.0"
 authors = [
     "Daira Emma Hopwood <daira@jacaranda.org>",
@@ -29,6 +29,10 @@ readme = "README.md"
 categories = ["algorithms"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/zcash/halo2_legacy_pdqsort"
+
+[lib]
+name = "halo2_legacy_pdqsort"
+path = "src/lib.rs"
 
 [dependencies]
 

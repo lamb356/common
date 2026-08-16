@@ -12,7 +12,7 @@
 [package]
 edition = "2024"
 rust-version = "1.88"
-name = "zcash_proofs"
+name = "zakura-proofs"
 version = "0.30.0"
 authors = ["Jack Grigg <jack@z.cash>"]
 build = false
@@ -109,12 +109,13 @@ default-features = false
 path = "../redjubjub"
 version = "0.8"
 default-features = false
+package = "zakura-redjubjub"
 
 [dependencies.sapling]
 path = "../sapling-crypto"
 version = "0.7"
 default-features = false
-package = "sapling-crypto"
+package = "zakura-sapling-crypto"
 
 [dependencies.tracing]
 version = "0.1"
@@ -133,6 +134,7 @@ path = "../zcash_primitives"
 version = "0.30.0"
 features = ["circuits"]
 default-features = false
+package = "zakura-primitives"
 
 [dev-dependencies.byteorder]
 version = "1"
