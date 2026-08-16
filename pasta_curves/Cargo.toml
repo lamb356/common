@@ -30,7 +30,7 @@ description = "Implementation of the Pallas and Vesta (Pasta) curve cycle"
 documentation = "https://docs.rs/zakura-pasta-curves"
 readme = "README.md"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/zcash/pasta_curves"
+repository = "https://github.com/zakura-core/libraries"
 
 [package.metadata.docs.rs]
 all-features = true

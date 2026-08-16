@@ -29,7 +29,7 @@ description = "A collision-resistant circuit-efficient hash function"
 readme = "README.md"
 categories = ["cryptography"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/zcash/sinsemilla"
+repository = "https://github.com/zakura-core/libraries"
 
 [lib]
 name = "sinsemilla"

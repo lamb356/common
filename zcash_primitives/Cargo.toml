@@ -29,7 +29,7 @@ homepage = "https://github.com/zcash/librustzcash"
 readme = "README.md"
 categories = ["cryptography::cryptocurrencies"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/zcash/librustzcash"
+repository = "https://github.com/zakura-core/libraries"
 resolver = "2"
 
 [package.metadata.docs.rs]

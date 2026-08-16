@@ -28,7 +28,7 @@ This is intended to work around a determinism bug in the halo2_proofs crate.
 readme = "README.md"
 categories = ["algorithms"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/zcash/halo2_legacy_pdqsort"
+repository = "https://github.com/zakura-core/libraries"
 
 [lib]
 name = "halo2_legacy_pdqsort"

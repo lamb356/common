@@ -37,7 +37,7 @@ keywords = [
 ]
 categories = ["cryptography"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/ZcashFoundation/redjubjub"
+repository = "https://github.com/zakura-core/libraries"
 
 [package.metadata.docs.rs]
 features = ["nightly"]

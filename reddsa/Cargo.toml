@@ -39,7 +39,7 @@ categories = [
     "no-std",
 ]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/ZcashFoundation/reddsa"
+repository = "https://github.com/zakura-core/libraries"
 
 [package.metadata.docs.rs]
 features = ["nightly"]
