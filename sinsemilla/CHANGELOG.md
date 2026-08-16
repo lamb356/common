@@ -10,3 +10,6 @@ and this project adheres to Rust's notion of
 
 - Forked from upstream `sinsemilla` and renamed to `zakura-sinsemilla`; this changelog starts
   fresh for the Zakura fork's initial release.
+- Restarted the version lineage at 1.0.0, leaving behind the inherited upstream
+  version (0.1.0); the initial Zakura release will be preceded by `1.0.0-rc` release
+  candidates.

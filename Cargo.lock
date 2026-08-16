@@ -3750,7 +3750,7 @@ dependencies = [
 
 [[package]]
 name = "zakura-halo2-gadgets"
-version = "0.5.0"
+version = "1.0.0-rc.1"
 dependencies = [
  "arrayvec",
  "bitvec",
@@ -3773,14 +3773,14 @@ dependencies = [
 
 [[package]]
 name = "zakura-halo2-legacy-pdqsort"
-version = "0.1.0"
+version = "1.0.0-rc.1"
 dependencies = [
  "rand",
 ]
 
 [[package]]
 name = "zakura-halo2-poseidon"
-version = "0.1.0"
+version = "1.0.0-rc.1"
 dependencies = [
  "bitvec",
  "ff",
@@ -3790,7 +3790,7 @@ dependencies = [
 
 [[package]]
 name = "zakura-halo2-proofs"
-version = "0.3.5"
+version = "1.0.0-rc.1"
 dependencies = [
  "assert_matches",
  "backtrace",
@@ -3816,7 +3816,7 @@ dependencies = [
 
 [[package]]
 name = "zakura-keys"
-version = "0.16.1"
+version = "1.0.0-rc.1"
 dependencies = [
  "assert_matches",
  "bech32",
@@ -3855,7 +3855,7 @@ dependencies = [
 
 [[package]]
 name = "zakura-orchard"
-version = "0.15.5"
+version = "1.0.0-rc.1"
 dependencies = [
  "aes",
  "bitvec",
@@ -3897,7 +3897,7 @@ dependencies = [
 
 [[package]]
 name = "zakura-pasta-curves"
-version = "0.5.2"
+version = "1.0.0-rc.1"
 dependencies = [
  "bincode",
  "blake2b_simd",
@@ -3919,7 +3919,7 @@ dependencies = [
 
 [[package]]
 name = "zakura-primitives"
-version = "0.30.0"
+version = "1.0.0-rc.1"
 dependencies = [
  "assert_matches",
  "blake2b_simd",
@@ -3956,7 +3956,7 @@ dependencies = [
 
 [[package]]
 name = "zakura-proofs"
-version = "0.30.0"
+version = "1.0.0-rc.1"
 dependencies = [
  "bellman",
  "blake2b_simd",
@@ -3979,7 +3979,7 @@ dependencies = [
 
 [[package]]
 name = "zakura-reddsa"
-version = "0.5.2"
+version = "1.0.0-rc.1"
 dependencies = [
  "bincode",
  "blake2b_simd",
@@ -4006,7 +4006,7 @@ dependencies = [
 
 [[package]]
 name = "zakura-redjubjub"
-version = "0.8.0"
+version = "1.0.0-rc.1"
 dependencies = [
  "bincode",
  "criterion 0.5.1",
@@ -4024,7 +4024,7 @@ dependencies = [
 
 [[package]]
 name = "zakura-sapling-crypto"
-version = "0.7.0"
+version = "1.0.0-rc.1"
 dependencies = [
  "aes",
  "bellman",
@@ -4060,7 +4060,7 @@ dependencies = [
 
 [[package]]
 name = "zakura-sinsemilla"
-version = "0.1.0"
+version = "1.0.0-rc.1"
 dependencies = [
  "group",
  "subtle",
