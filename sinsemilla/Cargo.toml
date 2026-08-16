@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.88"
 name = "zakura-sinsemilla"
-version = "0.1.0"
+version = "1.0.0-rc.1"
 authors = [
     "Dev Ojha <ValarDragon@users.noreply.github.com>",
     "Sean Bowe <ewillbefull@gmail.com>",
@@ -40,7 +40,7 @@ version = "0.13"
 
 [dependencies.pasta_curves]
 path = "../pasta_curves"
-version = "0.5"
+version = "1.0.0-rc.1"
 features = ["alloc"]
 default-features = false
 package = "zakura-pasta-curves"
