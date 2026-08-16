@@ -10,3 +10,6 @@ and this project adheres to Rust's notion of
 
 - Forked from upstream `pasta_curves` and renamed to `zakura-pasta-curves`; this changelog starts
   fresh for the Zakura fork's initial release.
+- Restarted the version lineage at 1.0.0, leaving behind the inherited upstream
+  version (0.5.2); the initial Zakura release will be preceded by `1.0.0-rc` release
+  candidates.
