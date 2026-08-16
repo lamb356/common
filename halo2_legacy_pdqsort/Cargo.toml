@@ -15,11 +15,8 @@ rust-version = "1.88"
 name = "zakura-halo2-legacy-pdqsort"
 version = "0.1.0"
 authors = [
-    "Daira Emma Hopwood <daira@jacaranda.org>",
-    "Sean Bowe <sean@electriccoin.co>",
-    "Jack Grigg <jack@electriccoin.co>",
-    "Kris Nuttycombe <kris@electriccoin.co>",
-    "Greg Pfeil <greg@electriccoin.co>",
+    "Dev Ojha <ValarDragon@users.noreply.github.com>",
+    "Sean Bowe <ewillbefull@gmail.com>",
 ]
 description = """
 A copy of the core::slice::sort module from the Rust 1.56.1 standard library, modified to behave the same on 32-bit platforms as on 64-bit.

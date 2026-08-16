@@ -15,10 +15,8 @@ rust-version = "1.88"
 name = "zakura-redjubjub"
 version = "0.8.0"
 authors = [
-    "Henry de Valence <hdevalence@hdevalence.ca>",
-    "Deirdre Connolly <durumcrustulum@gmail.com>",
-    "Chelsea Komlo <me@chelseakomlo.com>",
-    "Daira-Emma Hopwood <daira@jacaranda.org>",
+    "Dev Ojha <ValarDragon@users.noreply.github.com>",
+    "Sean Bowe <ewillbefull@gmail.com>",
 ]
 build = false
 autolib = false

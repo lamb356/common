@@ -14,7 +14,10 @@ edition = "2024"
 rust-version = "1.88"
 name = "zakura-proofs"
 version = "0.30.0"
-authors = ["Jack Grigg <jack@z.cash>"]
+authors = [
+    "Dev Ojha <ValarDragon@users.noreply.github.com>",
+    "Sean Bowe <ewillbefull@gmail.com>",
+]
 build = false
 autolib = false
 autobins = false
@@ -22,7 +25,7 @@ autoexamples = false
 autotests = false
 autobenches = false
 description = "Zcash zk-SNARK circuits and proving APIs"
-homepage = "https://github.com/zcash/librustzcash"
+homepage = "https://github.com/zakura-core/libraries"
 readme = "README.md"
 categories = ["cryptography::cryptocurrencies"]
 license = "MIT OR Apache-2.0"

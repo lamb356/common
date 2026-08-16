@@ -15,11 +15,8 @@ rust-version = "1.88"
 name = "zakura-reddsa"
 version = "0.5.2"
 authors = [
-    "Henry de Valence <hdevalence@hdevalence.ca>",
-    "Deirdre Connolly <durumcrustulum@gmail.com>",
-    "Chelsea Komlo <me@chelseakomlo.com>",
-    "Jack Grigg <jack@electriccoin.co>",
-    "Conrado Gouvea <conradoplg@gmail.com>",
+    "Dev Ojha <ValarDragon@users.noreply.github.com>",
+    "Sean Bowe <ewillbefull@gmail.com>",
 ]
 build = false
 autolib = false
