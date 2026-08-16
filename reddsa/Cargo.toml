@@ -12,14 +12,11 @@
 [package]
 edition = "2021"
 rust-version = "1.88"
-name = "reddsa"
+name = "zakura-reddsa"
 version = "0.5.2"
 authors = [
-    "Henry de Valence <hdevalence@hdevalence.ca>",
-    "Deirdre Connolly <durumcrustulum@gmail.com>",
-    "Chelsea Komlo <me@chelseakomlo.com>",
-    "Jack Grigg <jack@electriccoin.co>",
-    "Conrado Gouvea <conradoplg@gmail.com>",
+    "Dev Ojha <ValarDragon@users.noreply.github.com>",
+    "Sean Bowe <ewillbefull@gmail.com>",
 ]
 build = false
 autolib = false
@@ -27,6 +24,14 @@ autobins = false
 autoexamples = false
 autotests = false
 autobenches = false
+exclude = [
+    "/.gitignore",
+    "/Dockerfile",
+    "/cloudbuild.yaml",
+    "/codecov.yml",
+    "/rfcs",
+    "/zcash-frost-audit-report-20210323.pdf",
+]
 description = "A standalone implementation of the RedDSA signature scheme."
 readme = "README.md"
 keywords = [
@@ -39,7 +44,7 @@ categories = [
     "no-std",
 ]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/ZcashFoundation/reddsa"
+repository = "https://github.com/zakura-core/libraries"
 
 [package.metadata.docs.rs]
 features = ["nightly"]
@@ -138,6 +143,7 @@ default-features = false
 path = "../pasta_curves"
 version = "0.5"
 default-features = false
+package = "zakura-pasta-curves"
 
 [dependencies.rand_core]
 version = "0.6"
@@ -184,6 +190,7 @@ path = "../pasta_curves"
 version = "0.5"
 features = ["alloc"]
 default-features = false
+package = "zakura-pasta-curves"
 
 [dev-dependencies.proptest]
 version = "1.6"

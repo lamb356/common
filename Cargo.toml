@@ -6,6 +6,13 @@
 # repository — no `[patch]` indirection, so every edge into these crates is an
 # explicit declaration and the crates.io originals never enter the graph.
 #
+# Each member is named after its zakura-branded crates.io reservation (e.g.
+# halo2_proofs → zakura-halo2-proofs, zcash_primitives → zakura-primitives;
+# see the zakura-core/reserved repository for the full mapping). Directory
+# names and library target names keep the upstream names, so `use` paths stay
+# unchanged, and intra-workspace edges keep their upstream dependency keys via
+# `package = "zakura-*"` renames.
+#
 # Membership rule: the Orchard/halo2/Pallas proving stack, plus every crate in
 # Zakura's dependency graph that (transitively) depends on it. The closure must
 # stay closed: if a future dependency of Zakura pulls any of these names from

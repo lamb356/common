@@ -1,16 +1,23 @@
-# `pasta_curves`
+# `zakura-pasta-curves`
+
+`zakura-pasta-curves` is the [Zakura](https://github.com/zakura-core/zakura)
+fork of the upstream [`pasta_curves`](https://crates.io/crates/pasta_curves)
+crate from [zcash/pasta_curves](https://github.com/zcash/pasta_curves),
+maintained in
+[zakura-core/libraries](https://github.com/zakura-core/libraries). The library
+target keeps the upstream name, so `use pasta_curves::…` paths are unchanged.
+Use it as a drop-in replacement by renaming the dependency:
+
+```toml
+[dependencies]
+pasta_curves = { package = "zakura-pasta-curves", version = "0.5" }
+```
 
 This crate provides an implementation of the Pasta elliptic curve constructions,
 Pallas and Vesta. More details about the Pasta curves can be found
 [in this blog post](https://electriccoin.co/blog/the-pasta-curves-for-halo-2-and-beyond/).
 
-## RFC process
-
-This crate follows the [zkcrypto RFC process](https://zkcrypto.github.io/rfcs/).
-If you want to propose "substantial" changes to this crate, please
-[create an RFC](https://github.com/zkcrypto/rfcs) for wider discussion.
-
-## [Documentation](https://docs.rs/pasta_curves)
+## [Documentation](https://docs.rs/zakura-pasta-curves)
 
 ## Minimum Supported Rust Version
 

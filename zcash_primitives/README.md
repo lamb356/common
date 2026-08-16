@@ -1,4 +1,17 @@
-# zcash_primitives
+# zakura-primitives
+
+`zakura-primitives` is the [Zakura](https://github.com/zakura-core/zakura) fork
+of the upstream
+[`zcash_primitives`](https://crates.io/crates/zcash_primitives) crate from
+[zcash/librustzcash](https://github.com/zcash/librustzcash), maintained in
+[zakura-core/libraries](https://github.com/zakura-core/libraries). The library
+target keeps the upstream name, so `use zcash_primitives::…` paths are
+unchanged. Use it as a drop-in replacement by renaming the dependency:
+
+```toml
+[dependencies]
+zcash_primitives = { package = "zakura-primitives", version = "0.30" }
+```
 
 This library contains Rust implementations of the Zcash primitives.
 

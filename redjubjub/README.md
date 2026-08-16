@@ -1,3 +1,17 @@
+This crate, `zakura-redjubjub`, is the
+[Zakura](https://github.com/zakura-core/zakura) fork of the upstream
+[`redjubjub`](https://crates.io/crates/redjubjub) crate from
+[ZcashFoundation/redjubjub](https://github.com/ZcashFoundation/redjubjub),
+maintained in
+[zakura-core/libraries](https://github.com/zakura-core/libraries). The library
+target keeps the upstream name, so `use redjubjub::…` paths are unchanged. Use
+it as a drop-in replacement by renaming the dependency:
+
+```toml
+[dependencies]
+redjubjub = { package = "zakura-redjubjub", version = "0.8" }
+```
+
 A minimal [RedJubjub][redjubjub] implementation for use in [Zebra][zebra].
 
 Two parameterizations of RedJubjub are used in Zcash, one for

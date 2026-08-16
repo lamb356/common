@@ -12,11 +12,11 @@
 [package]
 edition = "2024"
 rust-version = "1.88"
-name = "zcash_primitives"
+name = "zakura-primitives"
 version = "0.30.0"
 authors = [
-    "Jack Grigg <jack@z.cash>",
-    "Kris Nuttycombe <kris@electriccoin.co>",
+    "Dev Ojha <ValarDragon@users.noreply.github.com>",
+    "Sean Bowe <ewillbefull@gmail.com>",
 ]
 build = false
 autolib = false
@@ -25,11 +25,11 @@ autoexamples = false
 autotests = false
 autobenches = false
 description = "Rust implementations of the Zcash primitives"
-homepage = "https://github.com/zcash/librustzcash"
+homepage = "https://github.com/zakura-core/libraries"
 readme = "README.md"
 categories = ["cryptography::cryptocurrencies"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/zcash/librustzcash"
+repository = "https://github.com/zakura-core/libraries"
 resolver = "2"
 
 [package.metadata.docs.rs]
@@ -143,6 +143,7 @@ default-features = false
 path = "../orchard"
 version = "0.15.0"
 default-features = false
+package = "zakura-orchard"
 
 [dependencies.proptest]
 version = ">=1,<1.7"
@@ -156,12 +157,13 @@ default-features = false
 path = "../redjubjub"
 version = "0.8"
 default-features = false
+package = "zakura-redjubjub"
 
 [dependencies.sapling]
 path = "../sapling-crypto"
 version = "0.7"
 default-features = false
-package = "sapling-crypto"
+package = "zakura-sapling-crypto"
 
 [dependencies.secp256k1]
 version = "0.29"
@@ -219,6 +221,7 @@ path = "../orchard"
 version = "0.15.0"
 features = ["test-dependencies"]
 default-features = false
+package = "zakura-orchard"
 
 [dev-dependencies.proptest]
 version = ">=1,<1.7"
@@ -231,7 +234,7 @@ path = "../sapling-crypto"
 version = "0.7"
 features = ["test-dependencies"]
 default-features = false
-package = "sapling-crypto"
+package = "zakura-sapling-crypto"
 
 [dev-dependencies.transparent]
 version = "0.10.0"

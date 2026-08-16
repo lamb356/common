@@ -40,7 +40,7 @@ jobs:
       - name: Remove lockfile
         run: rm Cargo.lock
       - name: Build with latest dependencies
-        run: cargo +stable build -p orchard --all-features --verbose
+        run: cargo +stable build -p zakura-orchard --all-features --verbose
       - name: Verify working directory is clean except for the lockfile
         run: git diff --exit-code ':!Cargo.lock'
 
@@ -61,7 +61,7 @@ jobs:
         run: rm Cargo.lock
       - name: Build with latest dependencies
         run: >-
-          cargo +stable build -p sapling-crypto
+          cargo +stable build -p zakura-sapling-crypto
           --all-targets
           --all-features
           --verbose
@@ -86,9 +86,9 @@ jobs:
       - name: Build with latest dependencies
         run: >-
           cargo +stable build
-          -p zcash_keys
-          -p zcash_primitives
-          -p zcash_proofs
+          -p zakura-keys
+          -p zakura-primitives
+          -p zakura-proofs
           --all-targets
           --all-features
           --verbose
@@ -107,7 +107,7 @@ jobs:
       - name: Update dependencies
         run: cargo +nightly update --verbose
       - name: Run tests
-        run: cargo +nightly test -p reddsa --all-features
+        run: cargo +nightly test -p zakura-reddsa --all-features
 
   redjubjub-nightly:
     name: redjubjub / Test on nightly
@@ -118,7 +118,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@7c8d7d138f5c09cef361f8214cf96882cd029cdb # nightly
-      - run: cargo +nightly test -p redjubjub --all-features
+      - run: cargo +nightly test -p zakura-redjubjub --all-features
 
   halo2-coverage:
     name: halo2 / Code coverage
@@ -134,9 +134,9 @@ jobs:
       - name: Generate coverage report
         run: >-
           cargo tarpaulin
-          -p halo2_gadgets
-          -p halo2_poseidon
-          -p halo2_proofs
+          -p zakura-halo2-gadgets
+          -p zakura-halo2-poseidon
+          -p zakura-halo2-proofs
           --no-default-features
           --features batch,dev-graph,gadget-traces,nightly,test-dependencies
           --engine llvm
@@ -158,7 +158,7 @@ jobs:
           persist-credentials: false
       - name: Generate coverage report
         run: >-
-          cargo tarpaulin -p orchard
+          cargo tarpaulin -p zakura-orchard
           --engine llvm
           --features dev-graph,unstable-frost,unstable-voting-circuits,test-dependencies
           --release
@@ -180,7 +180,7 @@ jobs:
           persist-credentials: false
       - name: Generate coverage report
         run: >-
-          cargo tarpaulin -p pasta_curves
+          cargo tarpaulin -p zakura-pasta-curves
           --engine llvm
           --all-features
           --timeout 600
@@ -203,10 +203,10 @@ jobs:
         with:
           tool: cargo-llvm-cov
       - name: Run tests
-        run: cargo +nightly llvm-cov -p reddsa --lcov --no-report
+        run: cargo +nightly llvm-cov -p zakura-reddsa --lcov --no-report
       - name: Generate coverage report
         run: >-
-          cargo +nightly llvm-cov -p reddsa
+          cargo +nightly llvm-cov -p zakura-reddsa
           --lcov
           --no-run
           --output-path lcov.info
@@ -231,6 +231,6 @@ jobs:
         shell: bash
         env:
           CARGO_INCREMENTAL: 0
-        run: cargo +nightly llvm-cov -p redjubjub --lcov > lcov.info
+        run: cargo +nightly llvm-cov -p zakura-redjubjub --lcov > lcov.info
       - name: Upload coverage report to Codecov
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2

@@ -12,13 +12,11 @@
 [package]
 edition = "2021"
 rust-version = "1.88"
-name = "pasta_curves"
+name = "zakura-pasta-curves"
 version = "0.5.2"
 authors = [
-    "Sean Bowe <sean@electriccoin.co>",
-    "Ying Tong Lai <yingtong@electriccoin.co>",
-    "Daira Hopwood <daira@electriccoin.co>",
-    "Jack Grigg <jack@electriccoin.co>",
+    "Dev Ojha <ValarDragon@users.noreply.github.com>",
+    "Sean Bowe <ewillbefull@gmail.com>",
 ]
 build = "build.rs"
 autolib = false
@@ -26,11 +24,16 @@ autobins = false
 autoexamples = false
 autotests = false
 autobenches = false
+exclude = [
+    "/.gitignore",
+    "/rust-toolchain.toml",
+    "/sage",
+]
 description = "Implementation of the Pallas and Vesta (Pasta) curve cycle"
-documentation = "https://docs.rs/pasta_curves"
+documentation = "https://docs.rs/zakura-pasta-curves"
 readme = "README.md"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/zcash/pasta_curves"
+repository = "https://github.com/zakura-core/libraries"
 
 [package.metadata.docs.rs]
 all-features = true

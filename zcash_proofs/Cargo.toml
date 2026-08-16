@@ -12,9 +12,12 @@
 [package]
 edition = "2024"
 rust-version = "1.88"
-name = "zcash_proofs"
+name = "zakura-proofs"
 version = "0.30.0"
-authors = ["Jack Grigg <jack@z.cash>"]
+authors = [
+    "Dev Ojha <ValarDragon@users.noreply.github.com>",
+    "Sean Bowe <ewillbefull@gmail.com>",
+]
 build = false
 autolib = false
 autobins = false
@@ -22,11 +25,11 @@ autoexamples = false
 autotests = false
 autobenches = false
 description = "Zcash zk-SNARK circuits and proving APIs"
-homepage = "https://github.com/zcash/librustzcash"
+homepage = "https://github.com/zakura-core/libraries"
 readme = "README.md"
 categories = ["cryptography::cryptocurrencies"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/zcash/librustzcash"
+repository = "https://github.com/zakura-core/libraries"
 resolver = "2"
 
 [package.metadata.docs.rs]
@@ -109,12 +112,13 @@ default-features = false
 path = "../redjubjub"
 version = "0.8"
 default-features = false
+package = "zakura-redjubjub"
 
 [dependencies.sapling]
 path = "../sapling-crypto"
 version = "0.7"
 default-features = false
-package = "sapling-crypto"
+package = "zakura-sapling-crypto"
 
 [dependencies.tracing]
 version = "0.1"
@@ -133,6 +137,7 @@ path = "../zcash_primitives"
 version = "0.30.0"
 features = ["circuits"]
 default-features = false
+package = "zakura-primitives"
 
 [dev-dependencies.byteorder]
 version = "1"

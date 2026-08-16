@@ -254,35 +254,35 @@ jobs:
         if: ${{ !cancelled() && needs.changes.outputs.halo2 == 'true' }}
         run: >-
           bash .github/scripts/check_rust_group.sh
-          "halo2_gadgets halo2_poseidon halo2_proofs" false false
+          "zakura-halo2-gadgets zakura-halo2-poseidon zakura-halo2-proofs" false false
       - name: halo2_legacy_pdqsort / Stable and MSRV checks
         if: ${{ !cancelled() && needs.changes.outputs.halo2_legacy_pdqsort == 'true' }}
         run: >-
           bash .github/scripts/check_rust_group.sh
-          halo2_legacy_pdqsort false true
+          zakura-halo2-legacy-pdqsort false true
       - name: orchard / Stable and MSRV checks
         if: ${{ !cancelled() && needs.changes.outputs.orchard == 'true' }}
-        run: bash .github/scripts/check_rust_group.sh orchard true false
+        run: bash .github/scripts/check_rust_group.sh zakura-orchard true false
       - name: pasta_curves / Stable and MSRV checks
         if: ${{ !cancelled() && needs.changes.outputs.pasta_curves == 'true' }}
-        run: bash .github/scripts/check_rust_group.sh pasta_curves false false
+        run: bash .github/scripts/check_rust_group.sh zakura-pasta-curves false false
       - name: reddsa / Stable and MSRV checks
         if: ${{ !cancelled() && needs.changes.outputs.reddsa == 'true' }}
-        run: bash .github/scripts/check_rust_group.sh reddsa false false
+        run: bash .github/scripts/check_rust_group.sh zakura-reddsa false false
       - name: redjubjub / Stable and MSRV checks
         if: ${{ !cancelled() && needs.changes.outputs.redjubjub == 'true' }}
-        run: bash .github/scripts/check_rust_group.sh redjubjub false false
+        run: bash .github/scripts/check_rust_group.sh zakura-redjubjub false false
       - name: sapling-crypto / Stable and MSRV checks
         if: ${{ !cancelled() && needs.changes.outputs.sapling_crypto == 'true' }}
-        run: bash .github/scripts/check_rust_group.sh sapling-crypto true false
+        run: bash .github/scripts/check_rust_group.sh zakura-sapling-crypto true false
       - name: sinsemilla / Stable and MSRV checks
         if: ${{ !cancelled() && needs.changes.outputs.sinsemilla == 'true' }}
-        run: bash .github/scripts/check_rust_group.sh sinsemilla false true
+        run: bash .github/scripts/check_rust_group.sh zakura-sinsemilla false true
       - name: librustzcash / Stable and MSRV checks
         if: ${{ !cancelled() && needs.changes.outputs.librustzcash == 'true' }}
         run: >-
           bash .github/scripts/check_rust_group.sh
-          "zcash_keys zcash_primitives zcash_proofs" true false
+          "zakura-keys zakura-primitives zakura-proofs" true false
 
   formatting:
     name: Formatting
@@ -334,9 +334,9 @@ jobs:
             features="$features,$STAGE_FEATURE"
           fi
           cargo +stable test --verbose --release \
-            -p halo2_gadgets \
-            -p halo2_poseidon \
-            -p halo2_proofs \
+            -p zakura-halo2-gadgets \
+            -p zakura-halo2-poseidon \
+            -p zakura-halo2-proofs \
             --no-default-features \
             --features "$features"
       - name: Verify working directory is clean
@@ -360,18 +360,18 @@ jobs:
       - name: Compile tests
         run: >-
           cargo +stable test --verbose --release
-          -p halo2_gadgets
-          -p halo2_poseidon
-          -p halo2_proofs
+          -p zakura-halo2-gadgets
+          -p zakura-halo2-poseidon
+          -p zakura-halo2-proofs
           --no-default-features
           --features batch,dev-graph,gadget-traces,test-dependencies
           --no-run
       - name: Test platform randomness and polynomial arithmetic
         run: >-
           cargo +stable test --verbose --release
-          -p halo2_gadgets
-          -p halo2_poseidon
-          -p halo2_proofs
+          -p zakura-halo2-gadgets
+          -p zakura-halo2-poseidon
+          -p zakura-halo2-proofs
           --no-default-features
           --features batch,dev-graph,gadget-traces,test-dependencies
           poly::domain::test_rotate
@@ -413,9 +413,9 @@ jobs:
             features="$features,$STAGE"
           fi
           cargo +1.88.0 test --verbose --release \
-            -p halo2_gadgets \
-            -p halo2_poseidon \
-            -p halo2_proofs \
+            -p zakura-halo2-gadgets \
+            -p zakura-halo2-poseidon \
+            -p zakura-halo2-proofs \
             --target i686-unknown-linux-gnu \
             --no-default-features \
             --features "$features"
@@ -441,9 +441,9 @@ jobs:
       - name: Build target
         run: >-
           cargo +1.88.0 build
-          -p halo2_gadgets
-          -p halo2_poseidon
-          -p halo2_proofs
+          -p zakura-halo2-gadgets
+          -p zakura-halo2-poseidon
+          -p zakura-halo2-proofs
           --target ${{ matrix.target }}
           --no-default-features
           --features batch,dev-graph,gadget-traces,nightly
@@ -462,10 +462,10 @@ jobs:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
       - name: Run tests
-        run: cargo +stable test -p orchard --verbose
+        run: cargo +stable test -p zakura-orchard --verbose
       - name: Compile-check verifier-fingerprint capture
         run: >-
-          cargo +stable test -p orchard
+          cargo +stable test -p zakura-orchard
           --features verifier-fingerprint
           --no-run
           --verbose
@@ -488,9 +488,9 @@ jobs:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
       - name: Compile tests
-        run: cargo +stable test -p orchard --verbose --no-run
+        run: cargo +stable test -p zakura-orchard --verbose --no-run
       - name: Create and verify a proof individually and in a batch
-        run: cargo +stable test -p orchard --verbose --test platform_smoke
+        run: cargo +stable test -p zakura-orchard --verbose --test platform_smoke
       - name: Verify working directory is clean
         run: git diff --exit-code
 
@@ -515,7 +515,7 @@ jobs:
           targets: ${{ matrix.target }}
       - name: Build no_std target
         run: >-
-          cargo +1.88.0 build -p orchard
+          cargo +1.88.0 build -p zakura-orchard
           --no-default-features
           --target ${{ matrix.target }}
           --verbose
@@ -539,7 +539,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
       - name: Run tests
         run: >-
-          cargo +stable test -p pasta_curves
+          cargo +stable test -p zakura-pasta-curves
           --verbose
           --release
           ${{ matrix.features }}
@@ -563,14 +563,14 @@ jobs:
       - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
       - name: Compile tests
         run: >-
-          cargo +stable test -p pasta_curves
+          cargo +stable test -p zakura-pasta-curves
           --verbose
           --release
           --all-features
           --no-run
       - name: Test field arithmetic
         run: >-
-          cargo +stable test -p pasta_curves
+          cargo +stable test -p zakura-pasta-curves
           --verbose
           --release
           --all-features
@@ -578,7 +578,7 @@ jobs:
       - name: Test Apple AArch64 assembly
         if: runner.os == 'macOS' && runner.arch == 'ARM64'
         run: >-
-          cargo +stable test -p pasta_curves
+          cargo +stable test -p zakura-pasta-curves
           --verbose
           --release
           --all-features
@@ -607,7 +607,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y gcc-multilib
       - name: Run tests
         run: >-
-          cargo +1.88.0 test -p pasta_curves
+          cargo +1.88.0 test -p zakura-pasta-curves
           --verbose
           --target i686-unknown-linux-gnu
           ${{ matrix.features }}
@@ -636,7 +636,7 @@ jobs:
           targets: ${{ matrix.target }}
       - name: Build target
         run: >-
-          cargo +1.88.0 build -p pasta_curves
+          cargo +1.88.0 build -p zakura-pasta-curves
           --verbose
           --target ${{ matrix.target }}
           --no-default-features
@@ -654,7 +654,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
-      - run: cargo +stable test -p reddsa --all-features --locked
+      - run: cargo +stable test -p zakura-reddsa --all-features --locked
 
   reddsa-no-std:
     name: reddsa / Build no_std
@@ -670,7 +670,7 @@ jobs:
         with:
           targets: thumbv6m-none-eabi
       - run: >-
-          cargo +1.88.0 build -p reddsa
+          cargo +1.88.0 build -p zakura-reddsa
           --no-default-features
           --target thumbv6m-none-eabi
 
@@ -687,7 +687,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
-      - run: cargo +stable test -p redjubjub --all-features
+      - run: cargo +stable test -p zakura-redjubjub --all-features
 
   redjubjub-no-std:
     name: redjubjub / Build no_std for ${{ matrix.target }}
@@ -709,7 +709,7 @@ jobs:
         with:
           targets: ${{ matrix.target }}
       - run: >-
-          cargo +1.88.0 build -p redjubjub
+          cargo +1.88.0 build -p zakura-redjubjub
           --no-default-features
           --target ${{ matrix.target }}
           --verbose
@@ -729,7 +729,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
       - name: Run tests
         run: >-
-          cargo +stable test -p sapling-crypto
+          cargo +stable test -p zakura-sapling-crypto
           --all-features
           --verbose
           --release
@@ -753,14 +753,14 @@ jobs:
       - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
       - name: Compile tests
         run: >-
-          cargo +stable test -p sapling-crypto
+          cargo +stable test -p zakura-sapling-crypto
           --all-features
           --verbose
           --release
           --no-run
       - name: Test platform randomness and note encryption
         run: >-
-          cargo +stable test -p sapling-crypto
+          cargo +stable test -p zakura-sapling-crypto
           --all-features
           --verbose
           --release
@@ -789,7 +789,7 @@ jobs:
           targets: ${{ matrix.target }}
       - name: Build target
         run: >-
-          cargo +1.88.0 build -p sapling-crypto
+          cargo +1.88.0 build -p zakura-sapling-crypto
           --no-default-features
           --target ${{ matrix.target }}
           --verbose
@@ -813,9 +813,9 @@ jobs:
       - name: Run tests
         run: >-
           cargo +1.88.0 test
-          -p zcash_keys
-          -p zcash_primitives
-          -p zcash_proofs
+          -p zakura-keys
+          -p zakura-primitives
+          -p zakura-proofs
           --all-features
           -- --test-threads=2
       - name: Verify working directory is clean
@@ -837,65 +837,65 @@ jobs:
       - name: Check no-default-features
         run: >-
           cargo +1.88.0 check
-          -p zcash_keys
-          -p zcash_primitives
-          -p zcash_proofs
+          -p zakura-keys
+          -p zakura-primitives
+          -p zakura-proofs
           --all-targets
           --no-default-features
       - name: Check transparent-inputs-only
         if: ${{ !cancelled() }}
         run: >-
           cargo +1.88.0 check
-          -p zcash_keys
-          -p zcash_primitives
-          -p zcash_proofs
+          -p zakura-keys
+          -p zakura-primitives
+          -p zakura-proofs
           --all-targets
           --no-default-features
-          --features zcash_keys/transparent-inputs,zcash_primitives/transparent-inputs
+          --features zakura-keys/transparent-inputs,zakura-primitives/transparent-inputs
       - name: Check transparent-key-encoding-only
         if: ${{ !cancelled() }}
         run: >-
           cargo +1.88.0 check
-          -p zcash_keys
-          -p zcash_primitives
-          -p zcash_proofs
+          -p zakura-keys
+          -p zakura-primitives
+          -p zakura-proofs
           --all-targets
           --no-default-features
-          --features zcash_keys/transparent-key-encoding
+          --features zakura-keys/transparent-key-encoding
       - name: Check Sapling-only
         if: ${{ !cancelled() }}
         run: >-
           cargo +1.88.0 check
-          -p zcash_keys
-          -p zcash_primitives
-          -p zcash_proofs
+          -p zakura-keys
+          -p zakura-primitives
+          -p zakura-proofs
           --all-targets
           --no-default-features
-          --features zcash_keys/sapling,zcash_primitives/circuits
+          --features zakura-keys/sapling,zakura-primitives/circuits
       - name: Check Orchard
         if: ${{ !cancelled() }}
         run: >-
           cargo +1.88.0 check
-          -p zcash_keys
-          -p zcash_primitives
-          -p zcash_proofs
+          -p zakura-keys
+          -p zakura-primitives
+          -p zakura-proofs
           --all-targets
           --no-default-features
-          --features zcash_keys/orchard,zcash_primitives/circuits
+          --features zakura-keys/orchard,zakura-primitives/circuits
       - name: Check all-features
         if: ${{ !cancelled() }}
         run: >-
           cargo +1.88.0 check
-          -p zcash_keys
-          -p zcash_primitives
-          -p zcash_proofs
+          -p zakura-keys
+          -p zakura-primitives
+          -p zakura-proofs
           --all-targets
           --all-features
       - name: Clippy each feature of each imported crate
         if: ${{ !cancelled() }}
         shell: bash
         run: |
-          for package in zcash_keys zcash_primitives zcash_proofs; do
+          for package in zakura-keys zakura-primitives zakura-proofs; do
             cargo +1.88.0 metadata --no-deps --format-version 1 |
               jq -r --arg package "$package" \
                 '.packages[] | select(.name == $package) | .features | keys[]' |
@@ -917,9 +917,9 @@ jobs:
         continue-on-error: true
         run: >-
           cargo +beta clippy
-          -p zcash_keys
-          -p zcash_primitives
-          -p zcash_proofs
+          -p zakura-keys
+          -p zakura-primitives
+          -p zakura-proofs
           --no-deps
           --all-features
           --all-targets
@@ -936,10 +936,10 @@ jobs:
       matrix:
         include:
           - target: wasm32-wasip1
-            packages: -p zcash_proofs
+            packages: -p zakura-proofs
             build-deps: gcc-multilib
           - target: thumbv7em-none-eabihf
-            packages: -p zcash_keys -p zcash_primitives
+            packages: -p zakura-keys -p zakura-primitives
             build-deps: gcc-arm-none-eabi
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

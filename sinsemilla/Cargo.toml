@@ -12,12 +12,11 @@
 [package]
 edition = "2021"
 rust-version = "1.88"
-name = "sinsemilla"
+name = "zakura-sinsemilla"
 version = "0.1.0"
 authors = [
-    "Jack Grigg <jack@electriccoin.co>",
-    "Kris Nuttycombe <kris@electriccoin.co>",
-    "Ying Tong Lai",
+    "Dev Ojha <ValarDragon@users.noreply.github.com>",
+    "Sean Bowe <ewillbefull@gmail.com>",
 ]
 build = false
 autolib = false
@@ -25,11 +24,12 @@ autobins = false
 autoexamples = false
 autotests = false
 autobenches = false
+exclude = ["/.gitignore"]
 description = "A collision-resistant circuit-efficient hash function"
 readme = "README.md"
 categories = ["cryptography"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/zcash/sinsemilla"
+repository = "https://github.com/zakura-core/libraries"
 
 [lib]
 name = "sinsemilla"
@@ -43,6 +43,7 @@ path = "../pasta_curves"
 version = "0.5"
 features = ["alloc"]
 default-features = false
+package = "zakura-pasta-curves"
 
 [dependencies.subtle]
 version = "2.3"
