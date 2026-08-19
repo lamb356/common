@@ -1,6 +1,6 @@
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use ff::Field;
-use rand_core::OsRng;
+use rand::rng as thread_rng;
 use sapling::{
     self, Diversifier, SaplingIvk,
     note_encryption::{
@@ -22,7 +22,7 @@ use zcash_protocol::{
 use pprof::criterion::{Output, PProfProfiler};
 
 fn bench_note_decryption(c: &mut Criterion) {
-    let mut rng = OsRng;
+    let mut rng = thread_rng();
     let height = TEST_NETWORK.activation_height(Canopy).unwrap();
     let zip212_enforcement = zip212_enforcement(&TEST_NETWORK, height);
 
