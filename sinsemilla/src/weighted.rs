@@ -62,8 +62,8 @@
 use alloc::{boxed::Box, vec::Vec};
 use core::mem;
 
-use group::{prime::PrimeCurveAffine, Curve, Group};
-use pasta_curves::{arithmetic::CurveAffine, pallas};
+use group::{Curve, CurveAffine as _, Group};
+use pasta_curves::{arithmetic::CurveAffine as _, pallas};
 
 use super::{lebs2ip_k, HashDomain, Pad, C, K, SINSEMILLA_S_AFFINE};
 
@@ -205,7 +205,7 @@ impl<const N: usize> UncheckedFixedLengthHashDomain<N> {
 mod tests {
     use alloc::vec::Vec;
 
-    use group::{prime::PrimeCurveAffine, Curve, Group};
+    use group::{Curve, CurveAffine as _, Group};
     use pasta_curves::pallas;
     use subtle::CtOption;
 

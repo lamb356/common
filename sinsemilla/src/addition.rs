@@ -1,8 +1,8 @@
 use core::ops::Add;
 
-use group::{cofactor::CofactorCurveAffine, Group};
+use group::{CurveAffine as _, Group};
 use pasta_curves::{
-    arithmetic::{CurveAffine, CurveExt},
+    arithmetic::{CurveAffine as _, CurveExt as _},
     pallas,
 };
 use subtle::{ConstantTimeEq, CtOption};
