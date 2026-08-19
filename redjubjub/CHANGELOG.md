@@ -8,6 +8,7 @@ and this project adheres to Rust's notion of
 
 ## [Unreleased]
 
+- Updated to `group 0.14`, `rand_core 0.10`, and the Zakura Jubjub fork.
 - Forked from upstream `redjubjub` and renamed to `zakura-redjubjub`; this changelog starts
   fresh for the Zakura fork's initial release.
 - Restarted the version lineage at 1.0.0, leaving behind the inherited upstream
