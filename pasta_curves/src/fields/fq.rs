@@ -2,7 +2,7 @@ use core::fmt;
 use core::ops::{Add, Mul, Neg, Sub};
 
 use ff::{Field, FromUniformBytes, PrimeField, WithSmallOrderMulGroup};
-use rand::RngCore;
+use rand::TryRng;
 use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};
 
 #[cfg(feature = "sqrt-table")]
@@ -567,17 +567,17 @@ impl ff::Field for Fq {
     const ZERO: Self = Self::zero();
     const ONE: Self = Self::one();
 
-    fn random(mut rng: impl RngCore) -> Self {
-        Self::from_u512([
-            rng.next_u64(),
-            rng.next_u64(),
-            rng.next_u64(),
-            rng.next_u64(),
-            rng.next_u64(),
-            rng.next_u64(),
-            rng.next_u64(),
-            rng.next_u64(),
-        ])
+    fn try_random<R: TryRng + ?Sized>(rng: &mut R) -> Result<Self, R::Error> {
+        Ok(Self::from_u512([
+            rng.try_next_u64()?,
+            rng.try_next_u64()?,
+            rng.try_next_u64()?,
+            rng.try_next_u64()?,
+            rng.try_next_u64()?,
+            rng.try_next_u64()?,
+            rng.try_next_u64()?,
+            rng.try_next_u64()?,
+        ]))
     }
 
     fn double(&self) -> Self {
@@ -929,7 +929,7 @@ fn aarch64_asm_portable_cmp(lhs: Fq, rhs: Fq) -> core::cmp::Ordering {
 ))]
 #[test]
 fn aarch64_asm_matches_portable_arithmetic() {
-    use rand::SeedableRng;
+    use rand::{Rng, SeedableRng};
 
     let max_montgomery_residue = Fq([MODULUS.0[0] - 1, MODULUS.0[1], MODULUS.0[2], MODULUS.0[3]]);
     let boundaries = [
