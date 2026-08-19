@@ -8,6 +8,8 @@ and this project adheres to Rust's notion of
 
 ## [Unreleased]
 
+- Updated to `group 0.14` and the Zakura Pasta and Jubjub forks, while retaining
+  the `rand_core 0.6` boundary required by FROST.
 - Forked from upstream `reddsa` and renamed to `zakura-reddsa`; this changelog starts
   fresh for the Zakura fork's initial release.
 - Restarted the version lineage at 1.0.0, leaving behind the inherited upstream

@@ -17,11 +17,11 @@ pub use frost_rerandomized::frost_core::serde;
 pub use frost_rerandomized::frost_core::{
     self as frost, Ciphersuite, Field, FieldError, Group, GroupError,
 };
-pub use rand_core;
+pub use rand_core_06 as rand_core;
 
-use rand_core::{CryptoRng, RngCore};
+use rand_core_06::{CryptoRng, RngCore};
 
-use crate::{hash::HStar, private::Sealed, sapling};
+use crate::{frost::rng_compat::RngCompat, hash::HStar, private::Sealed, sapling};
 
 /// An error type for the FROST(Jubjub, BLAKE2b-512) ciphersuite.
 pub type Error = frost_rerandomized::frost_core::Error<JubjubBlake2b512>;
@@ -54,7 +54,7 @@ impl Field for JubjubScalarField {
     }
 
     fn random<R: RngCore + CryptoRng>(rng: &mut R) -> Self::Scalar {
-        Self::Scalar::random(rng)
+        Self::Scalar::random(&mut RngCompat::new(rng))
     }
 
     fn serialize(scalar: &Self::Scalar) -> Self::Serialization {

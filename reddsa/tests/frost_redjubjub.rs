@@ -1,15 +1,16 @@
 #![cfg(feature = "frost")]
 
-use group::GroupEncoding;
-use rand::thread_rng;
-
 use frost_rerandomized::frost_core::{Ciphersuite, Group, GroupError};
+use group::GroupEncoding;
 
-use reddsa::{frost::redjubjub::JubjubBlake2b512, sapling};
+use reddsa::{
+    frost::redjubjub::{rand_core::OsRng, JubjubBlake2b512},
+    sapling,
+};
 
 #[test]
 fn check_sign_with_dealer() {
-    let rng = thread_rng();
+    let rng = OsRng;
 
     frost_rerandomized::frost_core::tests::ciphersuite_generic::check_sign_with_dealer::<
         JubjubBlake2b512,
@@ -19,7 +20,7 @@ fn check_sign_with_dealer() {
 
 #[test]
 fn check_randomized_sign_with_dealer() {
-    let rng = thread_rng();
+    let rng = OsRng;
 
     let (msg, group_signature, group_pubkey) =
         frost_rerandomized::tests::check_randomized_sign_with_dealer::<JubjubBlake2b512, _>(rng);
@@ -46,7 +47,7 @@ fn check_randomized_sign_with_dealer() {
 
 #[test]
 fn check_sign_with_dkg() {
-    let rng = thread_rng();
+    let rng = OsRng;
 
     frost_rerandomized::frost_core::tests::ciphersuite_generic::check_sign_with_dkg::<
         JubjubBlake2b512,

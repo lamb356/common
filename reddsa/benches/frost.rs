@@ -1,10 +1,9 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use rand::thread_rng;
-use reddsa::frost::redpallas::PallasBlake2b512;
+use reddsa::frost::redpallas::{rand_core::OsRng, PallasBlake2b512};
 
 use std::collections::BTreeMap;
 
-use rand_core::{CryptoRng, RngCore};
+use reddsa::frost::redpallas::rand_core::{CryptoRng, RngCore};
 
 use frost_rerandomized::frost_core::Ciphersuite;
 use frost_rerandomized::{frost_core as frost, RandomizedParams};
@@ -164,7 +163,7 @@ fn bench_rerandomized_sign<
 }
 
 fn bench_sign_redpallas(c: &mut Criterion) {
-    let mut rng = thread_rng();
+    let mut rng = OsRng;
 
     frost_rerandomized::frost_core::benches::bench_sign::<PallasBlake2b512, _>(
         c,
@@ -174,7 +173,7 @@ fn bench_sign_redpallas(c: &mut Criterion) {
 }
 
 fn bench_rerandomized_sign_redpallas(c: &mut Criterion) {
-    let mut rng = thread_rng();
+    let mut rng = OsRng;
 
     bench_rerandomized_sign::<PallasBlake2b512, _>(c, "redpallas", &mut rng);
 }
