@@ -103,6 +103,7 @@ jobs:
           # array, the path-routing cases, and the reverse-dependency graph
           # together. This does not prove those three mappings are equivalent.
           handled_members=(
+            bellman
             bls12_381
             halo2_gadgets
             halo2_legacy_pdqsort
