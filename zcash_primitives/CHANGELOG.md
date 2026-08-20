@@ -8,6 +8,8 @@ and this project adheres to Rust's notion of
 
 ## [Unreleased]
 
+- Updated the shielded-protocol dependencies to their `ff 0.14`-compatible
+  Zakura versions.
 - Forked from upstream `zcash_primitives` and renamed to `zakura-primitives`; this changelog starts
   fresh for the Zakura fork's initial release.
 - Restarted the version lineage at 1.0.0, leaving behind the inherited upstream

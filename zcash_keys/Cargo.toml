@@ -99,7 +99,9 @@ version = "1"
 default-features = false
 
 [dependencies.bls12_381]
-version = "0.8"
+path = "../bls12_381"
+version = "1.0.0-rc.1"
+package = "zakura-bls12-381"
 
 [dependencies.bs58]
 version = "0.5"
@@ -123,7 +125,7 @@ version = "0.2"
 optional = true
 
 [dependencies.group]
-version = "0.13"
+version = "0.14"
 
 [dependencies.memuse]
 version = "0.2.2"
@@ -212,7 +214,9 @@ features = ["alloc"]
 default-features = false
 
 [dev-dependencies.jubjub]
-version = "0.10"
+path = "../jubjub"
+version = "1.0.0-rc.1"
+package = "zakura-jubjub"
 
 [dev-dependencies.orchard]
 path = "../orchard"

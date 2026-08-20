@@ -2,26 +2,24 @@
 
 use std::collections::BTreeMap;
 
-use group::GroupEncoding;
-use rand::thread_rng;
-
 use frost_rerandomized::frost_core::{self as frost, Ciphersuite, Group, GroupError};
+use group::GroupEncoding;
 
 use reddsa::{
-    frost::redpallas::{keys::EvenY, PallasBlake2b512},
+    frost::redpallas::{keys::EvenY, rand_core::OsRng, PallasBlake2b512},
     orchard,
 };
 
 #[test]
 fn check_sign_with_dealer() {
-    let rng = thread_rng();
+    let rng = OsRng;
 
     frost::tests::ciphersuite_generic::check_sign_with_dealer::<PallasBlake2b512, _>(rng);
 }
 
 #[test]
 fn check_randomized_sign_with_dealer() {
-    let rng = thread_rng();
+    let rng = OsRng;
 
     let (msg, group_signature, group_pubkey) =
         frost_rerandomized::tests::check_randomized_sign_with_dealer::<PallasBlake2b512, _>(rng);
@@ -48,7 +46,7 @@ fn check_randomized_sign_with_dealer() {
 
 #[test]
 fn check_sign_with_dkg() {
-    let rng = thread_rng();
+    let rng = OsRng;
 
     frost::tests::ciphersuite_generic::check_sign_with_dkg::<PallasBlake2b512, _>(rng);
 }
@@ -85,7 +83,7 @@ fn check_deserialize_non_canonical() {
 
 #[test]
 fn check_even_y_frost_core() {
-    let mut rng = thread_rng();
+    let mut rng = OsRng;
 
     // Since there is a 50% chance of the public key having an odd Y (which
     // we need to actually test), loop enough times to make the chance of getting
@@ -122,7 +120,7 @@ fn check_even_y_frost_core() {
 
 #[test]
 fn check_even_y_reddsa() {
-    let mut rng = thread_rng();
+    let mut rng = OsRng;
 
     // Since there is a ~50% chance of having a odd Y internally, to make sure
     // that odd Ys are converted to even, we test multiple times to increase

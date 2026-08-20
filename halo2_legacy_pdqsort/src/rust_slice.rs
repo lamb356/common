@@ -6,7 +6,7 @@
 fn sort_unstable() {
     // MODIFIED: test the implementations in this crate.
     use crate::sort::{heapsort, quicksort};
-    use rand::{rngs::StdRng, seq::SliceRandom, Rng, SeedableRng};
+    use rand::{prelude::IndexedRandom, rngs::StdRng, RngExt, SeedableRng};
 
     // Miri is too slow (but still need to `chain` to make the types match)
     let lens = if cfg!(miri) {
@@ -18,7 +18,7 @@ fn sort_unstable() {
 
     let mut v = [0; 600];
     let mut tmp = [0; 600];
-    let mut rng = StdRng::from_entropy();
+    let mut rng = StdRng::from_rng(&mut rand::rng());
 
     for len in lens {
         let v = &mut v[0..len];
@@ -27,7 +27,7 @@ fn sort_unstable() {
         for &modulus in &[5, 10, 100, 1000] {
             for _ in 0..rounds {
                 for item in v.iter_mut().take(len) {
-                    *item = rng.gen::<i32>() % modulus;
+                    *item = rng.random::<i32>() % modulus;
                 }
 
                 // MODIFIED: "Sort in default order" test removed since the code

@@ -8,6 +8,7 @@ and this project adheres to Rust's notion of
 
 ## [Unreleased]
 
+- Updated the curve traits to `ff 0.14`, `group 0.14`, and `rand_core 0.10`.
 - Forked from upstream `pasta_curves` and renamed to `zakura-pasta-curves`; this changelog starts
   fresh for the Zakura fork's initial release.
 - Restarted the version lineage at 1.0.0, leaving behind the inherited upstream

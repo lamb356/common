@@ -19,12 +19,13 @@ use core::ops::{Add, Mul, Sub};
 #[cfg(feature = "alloc")]
 #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 pub trait CurveExt:
-    PrimeCurve<Affine = <Self as CurveExt>::AffineExt>
+    PrimeCurve
+    + group::Curve<Affine = <Self as CurveExt>::AffineExt>
     + group::Group<Scalar = <Self as CurveExt>::ScalarExt>
     + Default
     + ConditionallySelectable
     + ConstantTimeEq
-    + From<<Self as PrimeCurve>::Affine>
+    + From<<Self as group::Curve>::Affine>
 {
     /// The scalar field of this elliptic curve.
     type ScalarExt: ff::WithSmallOrderMulGroup<3>;
@@ -116,15 +117,16 @@ pub trait CurveExt:
 #[cfg(feature = "alloc")]
 #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 pub trait CurveAffine:
-    PrimeCurveAffine<
+    PrimeCurveAffine
+    + group::CurveAffine<
         Scalar = <Self as CurveAffine>::ScalarExt,
         Curve = <Self as CurveAffine>::CurveExt,
     > + Default
-    + Add<Output = <Self as PrimeCurveAffine>::Curve>
-    + Sub<Output = <Self as PrimeCurveAffine>::Curve>
+    + Add<Output = <Self as group::CurveAffine>::Curve>
+    + Sub<Output = <Self as group::CurveAffine>::Curve>
     + ConditionallySelectable
     + ConstantTimeEq
-    + From<<Self as PrimeCurveAffine>::Curve>
+    + From<<Self as group::CurveAffine>::Curve>
 {
     /// The scalar field of this elliptic curve.
     type ScalarExt: ff::WithSmallOrderMulGroup<3> + Ord;
@@ -213,6 +215,7 @@ mod tests {
     use super::*;
     use crate::{pallas, vesta};
     use ff::{Field, PrimeField, WithSmallOrderMulGroup};
+    use group::CurveAffine as _;
 
     const BATCH_SIZES: [usize; 15] = [0, 1, 2, 3, 7, 8, 15, 16, 17, 63, 64, 65, 127, 128, 129];
 

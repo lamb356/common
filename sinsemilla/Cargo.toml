@@ -36,7 +36,7 @@ name = "sinsemilla"
 path = "src/lib.rs"
 
 [dependencies.group]
-version = "0.13"
+version = "0.14"
 
 [dependencies.lazy_static]
 version = "1"

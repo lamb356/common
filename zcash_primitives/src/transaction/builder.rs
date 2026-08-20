@@ -3,7 +3,7 @@
 use core::cmp::Ordering;
 use core::fmt;
 
-use rand_core::{CryptoRng, RngCore};
+use rand_core::{CryptoRng, Rng};
 
 use ::sapling::{Note, PaymentAddress, builder::SaplingMetadata};
 use ::transparent::{
@@ -656,7 +656,7 @@ impl<P: consensus::Parameters> DeferredPcztBuilder<P> {
     /// result to the PCZT Creator (`build_from_parts`), then finalize, sign, and — at
     /// proving time — install the real anchor and witnesses through the PCZT Updater
     /// role before proving.
-    pub fn build_for_pczt<R: RngCore + CryptoRng, FR: FeeRule>(
+    pub fn build_for_pczt<R: Rng + CryptoRng, FR: FeeRule>(
         self,
         mut rng: R,
         fee_rule: &FR,
@@ -1385,7 +1385,7 @@ impl<P: consensus::Parameters, U: sapling::builder::ProverProgress> Builder<P, U
     /// [final transaction]: Transaction
     #[allow(clippy::too_many_arguments)]
     #[cfg(feature = "circuits")]
-    pub fn build<R: RngCore + CryptoRng, SP: SpendProver, OP: OutputProver, FR: FeeRule>(
+    pub fn build<R: Rng + CryptoRng, SP: SpendProver, OP: OutputProver, FR: FeeRule>(
         self,
         transparent_signing_set: &TransparentSigningSet,
         sapling_extsks: &[sapling::zip32::ExtendedSpendingKey],
@@ -1471,7 +1471,7 @@ impl<P: consensus::Parameters, U: sapling::builder::ProverProgress> Builder<P, U
                 >,
             >,
         A::TransparentAuth: transparent::sighash::TransparentAuthorizingContext,
-        R: RngCore + CryptoRng,
+        R: Rng + CryptoRng,
         SP: SpendProver,
         OP: OutputProver,
     {
@@ -1708,7 +1708,7 @@ impl<P: consensus::Parameters, U> Builder<P, U> {
     /// Upon success, returns a struct containing the PCZT components, and the
     /// [`SaplingMetadata`] and [`orchard::builder::BundleMetadata`] generated during the
     /// build process.
-    pub fn build_for_pczt<R: RngCore + CryptoRng, FR: FeeRule>(
+    pub fn build_for_pczt<R: Rng + CryptoRng, FR: FeeRule>(
         self,
         mut rng: R,
         fee_rule: &FR,
@@ -1851,7 +1851,9 @@ fn authorize_transparent(
 
 #[cfg(all(any(test, feature = "test-dependencies"), feature = "circuits"))]
 mod testing {
-    use rand_core::{CryptoRng, RngCore};
+    use core::convert::Infallible;
+
+    use rand_core::{Rng, TryCryptoRng, TryRng};
 
     use ::sapling::prover::mock::{MockOutputProver, MockSpendProver};
     use ::transparent::builder::TransparentSigningSet;
@@ -1863,30 +1865,29 @@ mod testing {
     impl<P: consensus::Parameters, U: sapling::builder::ProverProgress> Builder<P, U> {
         /// Build the transaction using mocked randomness and proving capabilities.
         /// DO NOT USE EXCEPT FOR UNIT TESTING.
-        pub fn mock_build<R: RngCore>(
+        pub fn mock_build<R: Rng>(
             self,
             transparent_signing_set: &TransparentSigningSet,
             sapling_extsks: &[sapling::zip32::ExtendedSpendingKey],
             orchard_saks: &[orchard::keys::SpendAuthorizingKey],
             rng: R,
         ) -> Result<BuildResult, Error<zip317::FeeError>> {
-            struct FakeCryptoRng<R: RngCore>(R);
-            impl<R: RngCore> CryptoRng for FakeCryptoRng<R> {}
-            impl<R: RngCore> RngCore for FakeCryptoRng<R> {
-                fn next_u32(&mut self) -> u32 {
-                    self.0.next_u32()
+            struct FakeCryptoRng<R: Rng>(R);
+            impl<R: Rng> TryCryptoRng for FakeCryptoRng<R> {}
+            impl<R: Rng> TryRng for FakeCryptoRng<R> {
+                type Error = Infallible;
+
+                fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+                    Ok(self.0.next_u32())
                 }
 
-                fn next_u64(&mut self) -> u64 {
-                    self.0.next_u64()
+                fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+                    Ok(self.0.next_u64())
                 }
 
-                fn fill_bytes(&mut self, dest: &mut [u8]) {
-                    self.0.fill_bytes(dest)
-                }
-
-                fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
-                    self.0.try_fill_bytes(dest)
+                fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
+                    self.0.fill_bytes(dest);
+                    Ok(())
                 }
             }
 
@@ -1916,7 +1917,7 @@ mod tests {
         core::convert::Infallible,
         ff::Field,
         incrementalmerkletree::{frontier::CommitmentTree, witness::IncrementalWitness},
-        rand_core::OsRng,
+        rand::rng as thread_rng,
         zcash_protocol::{
             consensus::{NetworkUpgrade, Parameters, TEST_NETWORK},
             memo::MemoBytes,
@@ -2161,7 +2162,7 @@ mod tests {
 
         let res = builder
             .build_for_pczt(
-                OsRng,
+                thread_rng(),
                 &crate::transaction::fees::zip317::FeeRule::standard(),
             )
             .unwrap();
@@ -2201,7 +2202,7 @@ mod tests {
 
         assert_matches!(
             builder.build_for_pczt(
-                OsRng,
+                thread_rng(),
                 &crate::transaction::fees::zip317::FeeRule::standard(),
             ),
             Err(Error::InsufficientFunds(_))
@@ -2241,7 +2242,7 @@ mod tests {
 
         assert_matches!(
             builder.build_for_pczt(
-                OsRng,
+                thread_rng(),
                 &crate::transaction::fees::zip317::FeeRule::standard(),
             ),
             Err(Error::TargetIncompatible(
@@ -2525,7 +2526,7 @@ mod tests {
 
         let result = builder
             .build_for_pczt(
-                OsRng,
+                thread_rng(),
                 &crate::transaction::fees::zip317::FeeRule::standard(),
             )
             .unwrap();
@@ -2642,7 +2643,7 @@ mod tests {
             .unwrap();
 
         let res = builder
-            .mock_build(&transparent_signing_set, &[], &[], OsRng)
+            .mock_build(&transparent_signing_set, &[], &[], thread_rng())
             .unwrap();
         // No binding signature, because only t input and outputs
         assert!(res.transaction().sapling_bundle.is_none());
@@ -2693,7 +2694,7 @@ mod tests {
             .unwrap();
 
         let res = builder
-            .mock_build(&transparent_signing_set, &[], &[], OsRng)
+            .mock_build(&transparent_signing_set, &[], &[], thread_rng())
             .unwrap();
         assert_eq!(res.transaction().expiry_height(), 0u32.into());
     }
@@ -2716,7 +2717,7 @@ mod tests {
             .unwrap();
 
         assert_matches!(
-            builder.mock_build(&TransparentSigningSet::new(), &[], &[], OsRng),
+            builder.mock_build(&TransparentSigningSet::new(), &[], &[], thread_rng()),
             Err(Error::CoinbaseExpiryHeightMismatch {
                 target_height,
                 expiry_height,
@@ -2731,7 +2732,7 @@ mod tests {
         let dfvk = extsk.to_diversifiable_full_viewing_key();
         let to = dfvk.default_address().1;
 
-        let mut rng = OsRng;
+        let mut rng = thread_rng();
 
         let note1 = to.create_note(
             sapling::value::NoteValue::from_raw(50000),
@@ -2769,7 +2770,7 @@ mod tests {
 
         // A binding signature (and bundle) is present because there is a Sapling spend.
         let res = builder
-            .mock_build(&TransparentSigningSet::new(), &[extsk], &[], OsRng)
+            .mock_build(&TransparentSigningSet::new(), &[extsk], &[], thread_rng())
             .unwrap();
         assert!(res.transaction().sapling_bundle().is_some());
     }
@@ -2779,7 +2780,7 @@ mod tests {
     fn fails_on_negative_change() {
         use crate::transaction::fees::zip317::MINIMUM_FEE;
 
-        let mut rng = OsRng;
+        let mut rng = thread_rng();
 
         // Just use the master key as the ExtendedSpendingKey for this test
         let extsk = ExtendedSpendingKey::master(&[]);
@@ -2799,7 +2800,7 @@ mod tests {
             };
             let builder = Builder::new(TEST_NETWORK, tx_height, build_config);
             assert_matches!(
-                builder.mock_build(&TransparentSigningSet::new(), &[], &[], OsRng),
+                builder.mock_build(&TransparentSigningSet::new(), &[], &[], thread_rng()),
                 Err(Error::InsufficientFunds(expected)) if expected == MINIMUM_FEE.into()
             );
         }
@@ -2830,7 +2831,7 @@ mod tests {
                 )
                 .unwrap();
             assert_matches!(
-                builder.mock_build(&TransparentSigningSet::new(), extsks, &[], OsRng),
+                builder.mock_build(&TransparentSigningSet::new(), extsks, &[], thread_rng()),
                 Err(Error::InsufficientFunds(expected)) if
                     expected == (Zatoshis::const_from_u64(50000) + MINIMUM_FEE).unwrap().into()
             );
@@ -2854,7 +2855,7 @@ mod tests {
                 )
                 .unwrap();
             assert_matches!(
-                builder.mock_build(&TransparentSigningSet::new(), extsks, &[], OsRng),
+                builder.mock_build(&TransparentSigningSet::new(), extsks, &[], thread_rng()),
                 Err(Error::InsufficientFunds(expected)) if expected ==
                     (Zatoshis::const_from_u64(50000) + MINIMUM_FEE).unwrap().into()
             );
@@ -2875,7 +2876,7 @@ mod tests {
             builder.set_zip233_amount(Zatoshis::const_from_u64(50000));
 
             assert_matches!(
-                builder.mock_build(&TransparentSigningSet::new(), extsks, &[], OsRng),
+                builder.mock_build(&TransparentSigningSet::new(), extsks, &[], thread_rng()),
                 Err(Error::InsufficientFunds(expected)) if expected ==
                     (Zatoshis::const_from_u64(50000) + MINIMUM_FEE).unwrap().into()
             );
@@ -2923,7 +2924,7 @@ mod tests {
                 )
                 .unwrap();
             assert_matches!(
-                builder.mock_build(&TransparentSigningSet::new(), extsks, &[], OsRng),
+                builder.mock_build(&TransparentSigningSet::new(), extsks, &[], thread_rng()),
                 Err(Error::InsufficientFunds(expected)) if expected == ZatBalance::const_from_i64(1)
             );
         }
@@ -2963,7 +2964,7 @@ mod tests {
                 .unwrap();
             builder.set_zip233_amount(Zatoshis::const_from_u64(10000));
             assert_matches!(
-                builder.mock_build(&TransparentSigningSet::new(), extsks, &[], OsRng),
+                builder.mock_build(&TransparentSigningSet::new(), extsks, &[], thread_rng()),
                 Err(Error::InsufficientFunds(expected)) if expected == ZatBalance::const_from_i64(1)
             );
         }
@@ -3017,7 +3018,7 @@ mod tests {
                 )
                 .unwrap();
             let res = builder
-                .mock_build(&TransparentSigningSet::new(), extsks, &[], OsRng)
+                .mock_build(&TransparentSigningSet::new(), extsks, &[], thread_rng())
                 .unwrap();
             assert_eq!(
                 res.transaction()
@@ -3069,7 +3070,7 @@ mod tests {
                 .unwrap();
             builder.set_zip233_amount(Zatoshis::const_from_u64(10000));
             let res = builder
-                .mock_build(&TransparentSigningSet::new(), extsks, &[], OsRng)
+                .mock_build(&TransparentSigningSet::new(), extsks, &[], thread_rng())
                 .unwrap();
             assert_eq!(
                 res.transaction()

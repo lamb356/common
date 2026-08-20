@@ -5,7 +5,6 @@ use bellman::{
     groth16::{self, Parameters, PreparedVerifyingKey, Proof, create_random_proof},
 };
 use bls12_381::Bls12;
-use rand_core::OsRng;
 
 use crate::circuit::sprout::*;
 
@@ -127,8 +126,9 @@ pub fn create_proof(
         rt: Some(rt),
     };
 
-    // Initialize secure RNG
-    let mut rng = OsRng;
+    // Draw the proof randomness straight from the OS: a thread-local RNG
+    // is not reseeded across fork() and can repeat (r, s) in the child.
+    let mut rng = rand::rand_core::UnwrapErr(rand::rngs::SysRng);
 
     create_random_proof(js, proving_key, &mut rng).expect("proving should not fail")
 }

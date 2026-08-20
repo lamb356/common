@@ -18,11 +18,16 @@ pub use frost_rerandomized::frost_core::serde;
 pub use frost_rerandomized::frost_core::{
     self as frost, Ciphersuite, Field, FieldError, Group, GroupError,
 };
-pub use rand_core;
+pub use rand_core_06 as rand_core;
 
-use rand_core::{CryptoRng, RngCore};
+use rand_core_06::{CryptoRng, RngCore};
 
-use crate::{frost::redpallas::keys::EvenY, hash::HStar, orchard, private::Sealed};
+use crate::{
+    frost::{redpallas::keys::EvenY, rng_compat::RngCompat},
+    hash::HStar,
+    orchard,
+    private::Sealed,
+};
 
 /// An error type for the FROST(Pallas, BLAKE2b-512) ciphersuite.
 pub type Error = frost_rerandomized::frost_core::Error<PallasBlake2b512>;
@@ -55,7 +60,7 @@ impl Field for PallasScalarField {
     }
 
     fn random<R: RngCore + CryptoRng>(rng: &mut R) -> Self::Scalar {
-        Self::Scalar::random(rng)
+        Self::Scalar::random(&mut RngCompat::new(rng))
     }
 
     fn serialize(scalar: &Self::Scalar) -> Self::Serialization {

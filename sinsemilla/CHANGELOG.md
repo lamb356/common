@@ -16,6 +16,7 @@ and this project adheres to Rust's notion of
 - Sinsemilla hashing now evaluates each message-word step with an
   algebraically equivalent doubling and mixed addition, avoiding a full
   projective addition while preserving incomplete-addition failures.
+- Updated the curve traits to `ff 0.14` and `group 0.14`.
 - The precomputed Sinsemilla $S$ generators are decoded once and reused across
   hashes instead of validating their coordinates for every message word.
 - Sinsemilla hashing now converts messages directly into words instead of

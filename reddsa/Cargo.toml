@@ -54,6 +54,7 @@ alloc = ["hex"]
 default = ["std"]
 frost = [
     "frost-rerandomized",
+    "rand_core_06",
     "alloc",
 ]
 nightly = []
@@ -126,7 +127,7 @@ optional = true
 default-features = false
 
 [dependencies.group]
-version = "0.13"
+version = "0.14"
 default-features = false
 
 [dependencies.hex]
@@ -136,8 +137,10 @@ optional = true
 default-features = false
 
 [dependencies.jubjub]
-version = "0.10"
+path = "../jubjub"
+version = "1.0.0-rc.1"
 default-features = false
+package = "zakura-jubjub"
 
 [dependencies.pasta_curves]
 path = "../pasta_curves"
@@ -146,8 +149,15 @@ default-features = false
 package = "zakura-pasta-curves"
 
 [dependencies.rand_core]
-version = "0.6"
+version = "0.10"
 default-features = false
+
+[dependencies.rand_core_06]
+version = "0.6"
+features = ["getrandom"]
+optional = true
+default-features = false
+package = "rand_core"
 
 [dependencies.serde]
 version = "1"
@@ -199,10 +209,10 @@ version = "1.6"
 version = "0.5"
 
 [dev-dependencies.rand]
-version = "0.8"
+version = "0.10"
 
 [dev-dependencies.rand_chacha]
-version = "0.3"
+version = "0.10"
 
 [dev-dependencies.serde_json]
 version = "1.0"
