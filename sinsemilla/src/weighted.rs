@@ -59,7 +59,7 @@
 //! [Pasta curve parameters]: https://electriccoin.co/blog/the-pasta-curves-for-halo-2-and-beyond/
 //! [Pollard-rho work estimate]: https://eprint.iacr.org/2019/1021.pdf#page=13
 
-use alloc::{boxed::Box, vec::Vec};
+use alloc::{boxed::Box, vec, vec::Vec};
 use core::mem;
 
 use group::{Curve, CurveAffine as _, Group};
@@ -68,6 +68,14 @@ use pasta_curves::{arithmetic::CurveAffine as _, pallas};
 use super::{HashDomain, MessageWords, C, K, SINSEMILLA_S_AFFINE};
 
 const GENERATOR_COUNT: usize = 1 << K;
+
+fn extract(point: pallas::Point) -> pallas::Base {
+    point
+        .to_affine()
+        .coordinates()
+        .map(|coordinates| *coordinates.x())
+        .unwrap_or_else(pallas::Base::zero)
+}
 
 /// An unchecked fixed-word-count Sinsemilla domain with position-weighted
 /// generators.
@@ -140,13 +148,64 @@ impl<const N: usize> UncheckedFixedLengthHashDomain<N> {
         }
     }
 
-    /// Evaluates exactly `N` pre-decoded Sinsemilla words.
+    /// Evaluates exactly `N` pre-decoded Sinsemilla words to a point.
     ///
     /// # Panics
     ///
-    /// Panics if any word is not a valid `K`-bit Sinsemilla word.
-    pub fn hash_words(&self, words: &[u16; N]) -> pallas::Point {
+    /// Panics if any word is not a valid [`K`]-bit Sinsemilla word.
+    pub fn hash_words_to_point(&self, words: &[u16; N]) -> pallas::Point {
         self.evaluate(words.iter().copied())
+    }
+
+    /// Evaluates the Sinsemilla hash of exactly `N` pre-decoded words.
+    ///
+    /// # Panics
+    ///
+    /// Panics if any word is not a valid [`K`]-bit Sinsemilla word.
+    pub fn hash_words(&self, words: &[u16; N]) -> pallas::Base {
+        extract(self.hash_words_to_point(words))
+    }
+
+    /// Evaluates a batch of `N`-word messages position-first and returns their
+    /// extracted Sinsemilla hashes.
+    ///
+    /// The projective results are normalized together, sharing a single field
+    /// inversion across the batch. An empty batch returns an empty [`Vec`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if any word is not a valid [`K`]-bit Sinsemilla word.
+    pub fn hash_words_batch(&self, messages: &[[u16; N]]) -> Vec<pallas::Base> {
+        let points = self.evaluate_batch(messages);
+        let mut affine = vec![pallas::Affine::identity(); points.len()];
+        if !points.is_empty() {
+            pallas::Point::batch_normalize(&points, &mut affine);
+        }
+
+        affine
+            .into_iter()
+            .map(|point| {
+                point
+                    .coordinates()
+                    .map(|coordinates| *coordinates.x())
+                    .unwrap_or_else(pallas::Base::zero)
+            })
+            .collect()
+    }
+
+    fn evaluate_batch(&self, messages: &[[u16; N]]) -> Vec<pallas::Point> {
+        let mut points = vec![self.initial; messages.len()];
+
+        for i in 0..N {
+            let exponent = N - i - 1;
+            for (point, words) in points.iter_mut().zip(messages) {
+                let generator_index = usize::from(words[i]);
+                assert!(generator_index < GENERATOR_COUNT, "invalid Sinsemilla word");
+                *point += self.weighted_generator(exponent, generator_index);
+            }
+        }
+
+        points
     }
 
     /// Evaluates a bit iterator whose padded representation is exactly `N`
@@ -169,11 +228,7 @@ impl<const N: usize> UncheckedFixedLengthHashDomain<N> {
     ///
     /// Panics as [`Self::hash_to_point`] does.
     pub fn hash(&self, msg: impl Iterator<Item = bool>) -> pallas::Base {
-        self.hash_to_point(msg)
-            .to_affine()
-            .coordinates()
-            .map(|coordinates| *coordinates.x())
-            .unwrap_or_else(pallas::Base::zero)
+        extract(self.hash_to_point(msg))
     }
 
     /// Returns the heap size occupied by the weighted generator table.
@@ -251,7 +306,7 @@ mod tests {
             domain.hash_to_point(bits.iter().copied()).is_some()
         ));
         assert_eq!(
-            unchecked.hash_words(&words),
+            unchecked.hash_words_to_point(&words),
             generator_point.double() + generator
         );
     }
@@ -283,13 +338,42 @@ mod tests {
         for words in fixtures {
             let bits = words_to_bits(&words);
             let expected = domain.hash_to_point(bits.iter().copied());
-            assert_matches(expected, weighted.hash_words(&words));
+            assert_matches(expected, weighted.hash_words_to_point(&words));
             assert_matches(expected, weighted.hash_to_point(bits.iter().copied()));
 
             let expected = domain.hash(bits.iter().copied());
             assert!(bool::from(expected.is_some()));
-            assert_eq!(expected.unwrap(), weighted.hash(bits.iter().copied()));
+            let expected = expected.unwrap();
+            assert_eq!(expected, weighted.hash_words(&words));
+            assert_eq!(expected, weighted.hash(bits.iter().copied()));
         }
+    }
+
+    #[test]
+    fn batch_matches_individual_word_evaluation() {
+        let domain = HashDomain::new(MERKLE_DOMAIN);
+        let weighted = UncheckedFixedLengthHashDomain::<MERKLE_WORDS>::new(&domain);
+        let mut state = 0x5369_6e73_656d_696c;
+        let messages: Vec<_> = (0..32)
+            .map(|_| {
+                core::array::from_fn(|_| (splitmix64(&mut state) as usize % GENERATOR_COUNT) as u16)
+            })
+            .collect();
+        let expected: Vec<_> = messages
+            .iter()
+            .map(|words| weighted.hash_words(words))
+            .collect();
+
+        assert_eq!(weighted.hash_words_batch(&messages), expected);
+        assert!(weighted.hash_words_batch(&[]).is_empty());
+    }
+
+    #[test]
+    #[should_panic(expected = "invalid Sinsemilla word")]
+    fn batch_rejects_invalid_words() {
+        let domain = HashDomain::new(MERKLE_DOMAIN);
+        let weighted = UncheckedFixedLengthHashDomain::<1>::new(&domain);
+        weighted.hash_words_batch(&[[GENERATOR_COUNT as u16]]);
     }
 
     #[test]
