@@ -20,7 +20,7 @@ jubjub = { package = "zakura-jubjub", version = "1.0.0-rc.1" }
 This is a pure Rust implementation of the Jubjub elliptic curve group and its associated fields.
 
 * **This implementation has not been reviewed or audited. Use at your own risk.**
-* This implementation targets Rust `1.56` or later.
+* This implementation targets Rust `1.88` or later.
 * All operations are constant time unless explicitly noted.
 * This implementation does not require the Rust standard library.
 

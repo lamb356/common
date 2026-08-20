@@ -76,6 +76,71 @@ fn g2_compressed_valid_test_vectors() {
 }
 
 #[test]
+#[cfg(feature = "pairings")]
+fn gt_try_random_rejects_identity() {
+    use core::fmt;
+    use group::Group;
+    use rand_core::TryRng;
+
+    #[derive(Debug)]
+    struct Exhausted;
+
+    impl fmt::Display for Exhausted {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.write_str("RNG exhausted")
+        }
+    }
+
+    impl core::error::Error for Exhausted {}
+
+    // The first twelve fills encode Fp12::ONE. Any further request fails, so
+    // this test only succeeds if Gt::try_random rejects the resulting identity
+    // and asks the RNG for another candidate.
+    struct OneThenExhausted {
+        fills: usize,
+    }
+
+    impl TryRng for OneThenExhausted {
+        type Error = Exhausted;
+
+        fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+            Err(Exhausted)
+        }
+
+        fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+            Err(Exhausted)
+        }
+
+        fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
+            assert_eq!(dest.len(), 96);
+            if self.fills == 12 {
+                return Err(Exhausted);
+            }
+
+            dest.fill(0);
+            if self.fills == 0 {
+                // Fp::try_from_rng interprets the first 48 bytes as the
+                // low 384-bit digit, in big-endian order.
+                dest[47] = 1;
+            }
+            self.fills += 1;
+            Ok(())
+        }
+    }
+
+    let mut rng = OneThenExhausted { fills: 0 };
+    assert_eq!(
+        super::fp12::Fp12::try_from_rng(&mut rng).unwrap(),
+        super::fp12::Fp12::one()
+    );
+    assert_eq!(rng.fills, 12);
+
+    let mut rng = OneThenExhausted { fills: 0 };
+    assert!(Gt::try_random(&mut rng).is_err());
+    assert_eq!(rng.fills, 12);
+}
+
+#[test]
 #[cfg(all(feature = "alloc", feature = "pairing"))]
 fn test_pairing_result_against_relic() {
     /*

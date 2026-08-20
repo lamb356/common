@@ -345,9 +345,13 @@ impl Group for Gt {
 
             // Not all elements of Fp12 are elements of the prime-order multiplicative
             // subgroup. We run the random element through final_exponentiation to obtain
-            // a valid element, which requires that it is non-zero.
+            // a valid element, which requires that it is non-zero. We also reject the
+            // identity to satisfy the `Group::try_random` contract.
             if !bool::from(inner.is_zero()) {
-                return Ok(MillerLoopResult(inner).final_exponentiation());
+                let candidate = MillerLoopResult(inner).final_exponentiation();
+                if !bool::from(candidate.is_identity()) {
+                    return Ok(candidate);
+                }
             }
         }
     }

@@ -291,6 +291,11 @@ jobs:
           bash .github/scripts/check_rust_group.sh
           "zakura-pairing zakura-bls12-381 zakura-jubjub zakura-bellman"
           false true
+      - name: BLS12-381 / Experimental feature check
+        if: ${{ !cancelled() && needs.changes.outputs.sapling_crypto == 'true' }}
+        run: >-
+          cargo +1.88.0 check --locked -p zakura-bls12-381
+          --no-default-features --features experimental
       - name: sapling-crypto / Stable and MSRV checks
         if: ${{ !cancelled() && needs.changes.outputs.sapling_crypto == 'true' }}
         run: bash .github/scripts/check_rust_group.sh zakura-sapling-crypto true false
