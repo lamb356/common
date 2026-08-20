@@ -263,11 +263,15 @@ jobs:
       - uses: dtolnay/rust-toolchain@2eae45db285e407f22119950686d47e1101e071b # 1.88.0
       - name: Install build dependencies
         run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
+      # One package per invocation: a grouped invocation lets Cargo unify
+      # features across the group, masking a package that cannot build
+      # against its own manifest alone.
       - name: halo2 / Stable and MSRV checks
         if: ${{ !cancelled() && needs.changes.outputs.halo2 == 'true' }}
-        run: >-
-          bash .github/scripts/check_rust_group.sh
-          "zakura-halo2-gadgets zakura-halo2-poseidon zakura-halo2-proofs" false false
+        run: |
+          bash .github/scripts/check_rust_group.sh zakura-halo2-gadgets false false
+          bash .github/scripts/check_rust_group.sh zakura-halo2-poseidon false false
+          bash .github/scripts/check_rust_group.sh zakura-halo2-proofs false false
       - name: halo2_legacy_pdqsort / Stable and MSRV checks
         if: ${{ !cancelled() && needs.changes.outputs.halo2_legacy_pdqsort == 'true' }}
         run: >-
