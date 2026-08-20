@@ -32,6 +32,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "bls12_381",
     "halo2_gadgets",
     "halo2_legacy_pdqsort",
     "halo2_poseidon",
