@@ -116,6 +116,8 @@ default-features = false
 
 [dependencies.rand]
 version = "0.10"
+features = ["sys_rng"]
+default-features = false
 
 [dependencies.redjubjub]
 path = "../redjubjub"
