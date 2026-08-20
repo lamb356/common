@@ -43,6 +43,9 @@ audit-as-crates-io = false
 [policy.zakura-halo2-proofs]
 audit-as-crates-io = false
 
+[policy.zakura-jubjub]
+audit-as-crates-io = false
+
 [policy.zakura-keys]
 audit-as-crates-io = false
 

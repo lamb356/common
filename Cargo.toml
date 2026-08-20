@@ -37,6 +37,7 @@ members = [
     "halo2_legacy_pdqsort",
     "halo2_poseidon",
     "halo2_proofs",
+    "jubjub",
     "orchard",
     "pairing",
     "pasta_curves",

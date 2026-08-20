@@ -24,6 +24,7 @@ This repository contains various Rust libraries used in [Zakura](https://github.
 
 - [`zakura-pairing`](pairing) (a [fork](https://github.com/zkcrypto/pairing) of `pairing`)
 - [`zakura-bls12-381`](bls12_381) (a [fork](https://github.com/zkcrypto/bls12_381) of `bls12_381`)
+- [`zakura-jubjub`](jubjub) (a [fork](https://github.com/zkcrypto/jubjub) of `jubjub`)
 - [`zakura-pasta-curves`](pasta_curves) (a [fork](https://github.com/zcash/pasta_curves) of `pasta_curves`)
 - [`zakura-sinsemilla`](sinsemilla) (a [fork](https://github.com/zcash/sinsemilla) of `sinsemilla`)
 - [`zakura-reddsa`](reddsa) (a [fork](https://github.com/ZcashFoundation/reddsa) of `reddsa`)
