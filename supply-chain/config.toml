@@ -46,6 +46,9 @@ audit-as-crates-io = false
 [policy.zakura-orchard]
 audit-as-crates-io = false
 
+[policy.zakura-pairing]
+audit-as-crates-io = false
+
 [policy.zakura-pasta-curves]
 audit-as-crates-io = false
 

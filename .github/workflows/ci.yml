@@ -108,6 +108,7 @@ jobs:
             halo2_poseidon
             halo2_proofs
             orchard
+            pairing
             pasta_curves
             reddsa
             redjubjub
