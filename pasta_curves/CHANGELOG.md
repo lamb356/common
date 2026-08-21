@@ -8,6 +8,7 @@ and this project adheres to Rust's notion of
 
 ## [Unreleased]
 
+- Prepared the `1.0.0-rc.3` release.
 - `Curve::batch_normalize` now runs its Montgomery batch inversion as two
   interleaved even/odd accumulator lanes for batches of 32 or more points
   (three extra multiplications per batch, one shared inversion), preserving the
