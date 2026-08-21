@@ -176,21 +176,45 @@ impl<const N: usize> UncheckedFixedLengthHashDomain<N> {
     ///
     /// Panics if any word is not a valid [`K`]-bit Sinsemilla word.
     pub fn hash_words_batch(&self, messages: &[[u16; N]]) -> Vec<pallas::Base> {
-        let points = self.evaluate_batch(messages);
-        let mut affine = vec![pallas::Affine::identity(); points.len()];
-        if !points.is_empty() {
-            pallas::Point::batch_normalize(&points, &mut affine);
-        }
+        use group::ff::Field;
+        use pasta_curves::arithmetic::CurveExt;
 
-        affine
-            .into_iter()
-            .map(|point| {
-                point
-                    .coordinates()
-                    .map(|coordinates| *coordinates.x())
-                    .unwrap_or_else(pallas::Base::zero)
-            })
-            .collect()
+        let points = self.evaluate_batch(messages);
+
+        // Fused batch x-extraction, sharing one field inversion across the
+        // batch. A full `batch_normalize` would also compute every
+        // y-coordinate (`1/z^3` and a further multiplication per point) into
+        // an intermediate affine buffer, only for extraction to discard
+        // them; here the backward pass writes `x / z^2` straight into the
+        // result vector. That vector also doubles as the prefix-product
+        // store for Montgomery's trick during the forward pass (the
+        // backward step needs each point's `z` and the prefix before it),
+        // so no scratch allocation is needed. An identity result — only
+        // reachable through the infeasible exceptional cases (see the
+        // module docs) — extracts to zero, matching [`extract`], and an
+        // empty batch runs zero iterations around an inversion of one.
+        let mut hashes = vec![pallas::Base::zero(); points.len()];
+        let mut acc = pallas::Base::one();
+        for (point, slot) in points.iter().zip(hashes.iter_mut()) {
+            let (_, _, z) = point.jacobian_coordinates();
+            *slot = acc;
+            if !z.is_zero_vartime() {
+                acc *= z;
+            }
+        }
+        // Skipped (identity) points never enter the product.
+        let mut acc = acc.invert().unwrap();
+        for (point, slot) in points.iter().zip(hashes.iter_mut()).rev() {
+            let (x, _, z) = point.jacobian_coordinates();
+            if z.is_zero_vartime() {
+                *slot = pallas::Base::zero();
+            } else {
+                let z_inv = acc * *slot;
+                acc *= z;
+                *slot = x * z_inv.square();
+            }
+        }
+        hashes
     }
 
     fn evaluate_batch(&self, messages: &[[u16; N]]) -> Vec<pallas::Point> {
@@ -198,10 +222,31 @@ impl<const N: usize> UncheckedFixedLengthHashDomain<N> {
 
         for i in 0..N {
             let exponent = N - i - 1;
-            for (point, words) in points.iter_mut().zip(messages) {
-                let generator_index = usize::from(words[i]);
-                assert!(generator_index < GENERATOR_COUNT, "invalid Sinsemilla word");
-                *point += self.weighted_generator(exponent, generator_index);
+            let mut point_pairs = points.chunks_exact_mut(2);
+            let mut message_pairs = messages.chunks_exact(2);
+
+            for (point_pair, message_pair) in point_pairs.by_ref().zip(&mut message_pairs) {
+                let generator_0 = usize::from(message_pair[0][i]);
+                let generator_1 = usize::from(message_pair[1][i]);
+                assert!(generator_0 < GENERATOR_COUNT, "invalid Sinsemilla word");
+                assert!(generator_1 < GENERATOR_COUNT, "invalid Sinsemilla word");
+
+                let sum = pallas::add_mixed_pair(
+                    &point_pair[0],
+                    &self.weighted_generator(exponent, generator_0),
+                    &point_pair[1],
+                    &self.weighted_generator(exponent, generator_1),
+                );
+                point_pair.copy_from_slice(&sum);
+            }
+
+            if let (Some(point), Some(words)) = (
+                point_pairs.into_remainder().first_mut(),
+                message_pairs.remainder().first(),
+            ) {
+                let generator = usize::from(words[i]);
+                assert!(generator < GENERATOR_COUNT, "invalid Sinsemilla word");
+                *point += self.weighted_generator(exponent, generator);
             }
         }
 
