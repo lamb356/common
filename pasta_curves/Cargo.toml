@@ -66,6 +66,11 @@ gpu = [
     "alloc",
     "ec-gpu",
 ]
+multicore = [
+    "glv",
+    "dep:maybe-rayon",
+    "maybe-rayon/threads",
+]
 repr-c = []
 serde = [
     "hex",
