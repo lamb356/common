@@ -8,6 +8,10 @@ and this project adheres to Rust's notion of
 
 ## [Unreleased]
 
+- The GLV batch-affine ladder now interleaves its nonzero Montgomery batch
+  inversion across even- and odd-indexed accumulator lanes. The three fixed
+  extra multiplications per ladder column expose independent multiplication
+  chains to out-of-order execution.
 - Prepared the `1.0.0-rc.3` release.
 - `Curve::batch_normalize` now runs its Montgomery batch inversion as two
   interleaved even/odd accumulator lanes for batches of 32 or more points
