@@ -1407,8 +1407,15 @@ pub(crate) fn fft_vartime<C: GlvParams>(
         .collect();
 
     let mut butterfly_scratch = AffineTwiddleScratch::new();
-    let mut chunk = 2;
-    let mut twiddle_stride = output.len() / 2;
+    let (mut chunk, mut twiddle_stride) = if output.len() >= 16 {
+        identity_free = fft16_low_multiplication_layer::<C>(output, omega, identity_free);
+        (32, output.len() / 32)
+    } else if output.len() >= 8 {
+        identity_free = fft8_multiplication_minimal_layer::<C>(output, omega, identity_free);
+        (16, output.len() / 16)
+    } else {
+        (2, output.len() / 2)
+    };
     while chunk <= output.len() {
         let half = chunk / 2;
         #[cfg(feature = "multicore")]
@@ -1512,6 +1519,548 @@ pub(crate) fn fft_vartime<C: GlvParams>(
         );
         chunk *= 2;
         twiddle_stride /= 2;
+    }
+}
+
+/// Replaces four radix-2 layers with a 16-point codelet that uses 14 scalar
+/// multiplications instead of 15. Its DFT8 and two odd-root DFT4
+/// subtransforms share their affine stages and repeated eighth-root scalar
+/// schedules.
+fn fft16_low_multiplication_layer<C: GlvParams>(
+    points: &mut [C::AffineExt],
+    omega: C::ScalarExt,
+    mut identity_free: bool,
+) -> bool {
+    debug_assert_eq!(points.len() % 16, 0);
+    let blocks = points.len() / 16;
+    let weighted_blocks = blocks * 2;
+    let mut scratch = AffineTwiddleScratch::new();
+    let mut left = Vec::with_capacity(points.len() / 2);
+    let mut right = Vec::with_capacity(points.len() / 2);
+
+    // The global bit reversal puts (q_j, q_{j + 8}) next to each other.
+    for block in points.chunks(16) {
+        for pair in block.chunks(2) {
+            left.push(pair[0]);
+            right.push(pair[1]);
+        }
+    }
+    let mut even_inputs = alloc::vec![C::AffineExt::identity(); points.len() / 2];
+    let mut odd_inputs = alloc::vec![C::AffineExt::identity(); points.len() / 2];
+    identity_free = affine_add_sub_pairs::<C>(
+        &left,
+        &right,
+        &mut even_inputs,
+        &mut odd_inputs,
+        &mut scratch,
+        identity_free,
+    );
+
+    let root16 = omega.pow_vartime([(points.len() / 16) as u64]);
+    let root8 = root16.square();
+    let root8_squared = root8.square();
+    let root8_cubed = root8_squared * root8;
+    let c = (root8 + root8_cubed) * C::ScalarExt::TWO_INV;
+    let d = (root8 - root8_cubed) * C::ScalarExt::TWO_INV;
+    let shared_scalars = [
+        Decomposed::<C>::new(&root8_squared),
+        Decomposed::<C>::new(&c),
+        Decomposed::<C>::new(&d),
+    ];
+
+    // Start the DFT8 on the sums and both odd-root DFT4s on the
+    // differences in one inversion batch.
+    left.clear();
+    right.clear();
+    left.reserve(blocks * 6);
+    right.reserve(blocks * 6);
+    for block in even_inputs.chunks(8) {
+        for pair in block.chunks(2) {
+            left.push(pair[0]);
+            right.push(pair[1]);
+        }
+    }
+    for block in odd_inputs.chunks(4) {
+        left.push(block[2]);
+        right.push(block[3]);
+    }
+    let mut stage1_sum = alloc::vec![C::AffineExt::identity(); blocks * 6];
+    let mut stage1_difference = alloc::vec![C::AffineExt::identity(); blocks * 6];
+    identity_free = affine_add_sub_pairs::<C>(
+        &left,
+        &right,
+        &mut stage1_sum,
+        &mut stage1_difference,
+        &mut scratch,
+        identity_free,
+    );
+
+    // Finish the additions needed before the DFT8 scalar multiplications.
+    left.clear();
+    right.clear();
+    left.reserve(blocks * 3);
+    right.reserve(blocks * 3);
+    for block in 0..blocks {
+        let offset = block * 4;
+        left.extend_from_slice(&[
+            stage1_sum[offset],
+            stage1_sum[offset + 2],
+            stage1_difference[offset + 2],
+        ]);
+        right.extend_from_slice(&[
+            stage1_sum[offset + 1],
+            stage1_sum[offset + 3],
+            stage1_difference[offset + 3],
+        ]);
+    }
+    let mut stage2_sum = alloc::vec![C::AffineExt::identity(); blocks * 3];
+    let mut stage2_difference = alloc::vec![C::AffineExt::identity(); blocks * 3];
+    identity_free = affine_add_sub_pairs::<C>(
+        &left,
+        &right,
+        &mut stage2_sum,
+        &mut stage2_difference,
+        &mut scratch,
+        identity_free,
+    );
+
+    // Both transforms use the same i, c, and d constants. Build one affine
+    // ladder batch per constant.
+    let odd_stage1_offset = blocks * 4;
+    let mut scalar_inputs = [
+        Vec::with_capacity(blocks * 4),
+        Vec::with_capacity(blocks * 3),
+        Vec::with_capacity(blocks * 3),
+    ];
+    for block in 0..blocks {
+        let stage1 = block * 4;
+        let stage2 = block * 3;
+        scalar_inputs[0].extend_from_slice(&[
+            C::from(stage2_difference[stage2 + 1]),
+            C::from(stage1_difference[stage1 + 1]),
+        ]);
+        scalar_inputs[1].push(C::from(stage2_sum[stage2 + 2]));
+        scalar_inputs[2].push(C::from(stage2_difference[stage2 + 2]));
+    }
+    for block in 0..weighted_blocks {
+        scalar_inputs[0].push(C::from(odd_inputs[block * 4 + 1]));
+        scalar_inputs[1].push(C::from(stage1_sum[odd_stage1_offset + block]));
+        scalar_inputs[2].push(C::from(stage1_difference[odd_stage1_offset + block]));
+    }
+    let products = mul_same_scalars_affine::<C>(scalar_inputs.into(), &shared_scalars);
+
+    // Complete the next DFT8 stage and the middle odd-root DFT4 stage in
+    // one denominator batch.
+    left.clear();
+    right.clear();
+    left.reserve(blocks * 8);
+    right.reserve(blocks * 8);
+    for block in 0..blocks {
+        let stage1 = block * 4;
+        let stage2 = block * 3;
+        let root8_squared_offset = block * 2;
+        left.extend_from_slice(&[
+            stage2_sum[stage2],
+            stage2_difference[stage2],
+            stage1_difference[stage1],
+            products[1][block],
+        ]);
+        right.extend_from_slice(&[
+            stage2_sum[stage2 + 1],
+            products[0][root8_squared_offset],
+            products[0][root8_squared_offset + 1],
+            products[2][block],
+        ]);
+    }
+    for block in 0..weighted_blocks {
+        let scalar_offset = blocks + block;
+        left.extend_from_slice(&[odd_inputs[block * 4], products[1][scalar_offset]]);
+        right.extend_from_slice(&[products[0][blocks * 2 + block], products[2][scalar_offset]]);
+    }
+    let mut stage3_sum = alloc::vec![C::AffineExt::identity(); blocks * 8];
+    let mut stage3_difference = alloc::vec![C::AffineExt::identity(); blocks * 8];
+    identity_free = affine_add_sub_pairs::<C>(
+        &left,
+        &right,
+        &mut stage3_sum,
+        &mut stage3_difference,
+        &mut scratch,
+        identity_free,
+    );
+
+    // Finish the DFT8 and both odd-root DFT4s together.
+    left.clear();
+    right.clear();
+    left.reserve(blocks * 6);
+    right.reserve(blocks * 6);
+    for block in 0..blocks {
+        let offset = block * 4;
+        left.extend_from_slice(&[stage3_sum[offset + 2], stage3_difference[offset + 2]]);
+        right.extend_from_slice(&[stage3_sum[offset + 3], stage3_difference[offset + 3]]);
+    }
+    let odd_stage3_offset = blocks * 4;
+    for block in 0..weighted_blocks {
+        let offset = odd_stage3_offset + block * 2;
+        left.extend_from_slice(&[stage3_sum[offset], stage3_difference[offset]]);
+        right.extend_from_slice(&[stage3_sum[offset + 1], stage3_difference[offset + 1]]);
+    }
+    let mut stage4_sum = alloc::vec![C::AffineExt::identity(); blocks * 6];
+    let mut stage4_difference = alloc::vec![C::AffineExt::identity(); blocks * 6];
+    identity_free = affine_add_sub_pairs::<C>(
+        &left,
+        &right,
+        &mut stage4_sum,
+        &mut stage4_difference,
+        &mut scratch,
+        identity_free,
+    );
+
+    let mut even_outputs = alloc::vec![C::AffineExt::identity(); blocks * 8];
+    for block in 0..blocks {
+        let stage3 = block * 4;
+        let stage4 = block * 2;
+        let output = &mut even_outputs[block * 8..][..8];
+        output[0] = stage3_sum[stage3];
+        output[4] = stage3_difference[stage3];
+        output[2] = stage3_sum[stage3 + 1];
+        output[6] = stage3_difference[stage3 + 1];
+        output[1] = stage4_sum[stage4];
+        output[5] = stage4_difference[stage4];
+        output[3] = stage4_sum[stage4 + 1];
+        output[7] = stage4_difference[stage4 + 1];
+    }
+
+    let odd_stage4_offset = blocks * 2;
+    let mut odd_roots = alloc::vec![C::AffineExt::identity(); blocks * 8];
+    for block in 0..weighted_blocks {
+        let stage4 = odd_stage4_offset + block * 2;
+        let output = &mut odd_roots[block * 4..][..4];
+        output[0] = stage4_sum[stage4];
+        output[1] = stage4_sum[stage4 + 1];
+        output[2] = stage4_difference[stage4];
+        output[3] = stage4_difference[stage4 + 1];
+    }
+
+    let root16_squared = root16.square();
+    let mut odd_root = root16;
+    let odd_scalars: Vec<_> = (0..4)
+        .map(|_| {
+            let decomposed = Decomposed::<C>::new(&odd_root);
+            odd_root *= root16_squared;
+            decomposed
+        })
+        .collect();
+    let mut scalar_inputs: Vec<Vec<C>> = (0..4).map(|_| Vec::with_capacity(blocks)).collect();
+    for block in odd_roots.chunks(8) {
+        for (input, point) in scalar_inputs.iter_mut().zip(&block[4..]) {
+            input.push(C::from(*point));
+        }
+    }
+    let products = mul_same_scalars_affine::<C>(scalar_inputs, &odd_scalars);
+
+    left.clear();
+    right.clear();
+    left.reserve(blocks * 4);
+    right.reserve(blocks * 4);
+    for (block_index, block) in odd_roots.chunks(8).enumerate() {
+        left.extend_from_slice(&block[..4]);
+        right.extend(products.iter().map(|products| products[block_index]));
+    }
+    let mut odd_low = alloc::vec![C::AffineExt::identity(); blocks * 4];
+    let mut odd_high = alloc::vec![C::AffineExt::identity(); blocks * 4];
+    identity_free = affine_add_sub_pairs::<C>(
+        &left,
+        &right,
+        &mut odd_low,
+        &mut odd_high,
+        &mut scratch,
+        identity_free,
+    );
+
+    for (block_index, output) in points.chunks_mut(16).enumerate() {
+        let even = &even_outputs[block_index * 8..][..8];
+        let odd_low = &odd_low[block_index * 4..][..4];
+        let odd_high = &odd_high[block_index * 4..][..4];
+        for i in 0..4 {
+            output[i * 2] = even[i];
+            output[i * 2 + 1] = odd_low[i];
+            output[i * 2 + 8] = even[i + 4];
+            output[i * 2 + 9] = odd_high[i];
+        }
+    }
+    identity_free
+}
+
+/// Replaces the bottom three radix-2 layers with an eight-point codelet.
+/// Each block uses four constant scalar multiplications instead of five,
+/// at the cost of two additional group additions.
+fn fft8_multiplication_minimal_layer<C: GlvParams>(
+    points: &mut [C::AffineExt],
+    omega: C::ScalarExt,
+    mut identity_free: bool,
+) -> bool {
+    debug_assert_eq!(points.len() % 8, 0);
+    let root8 = omega.pow_vartime([(points.len() / 8) as u64]);
+    let root8_squared = root8.square();
+    let root8_cubed = root8_squared * root8;
+    let c = (root8 + root8_cubed) * C::ScalarExt::TWO_INV;
+    let d = (root8 - root8_cubed) * C::ScalarExt::TWO_INV;
+    let scalars = [
+        Decomposed::<C>::new(&root8_squared),
+        Decomposed::<C>::new(&c),
+        Decomposed::<C>::new(&d),
+    ];
+
+    let blocks = points.len() / 8;
+    let mut scratch = AffineTwiddleScratch::new();
+    let mut left = Vec::with_capacity(blocks * 4);
+    let mut right = Vec::with_capacity(blocks * 4);
+    for block in points.chunks(8) {
+        // The enclosing FFT has already bit-reversed the input. Undo the
+        // local three-bit reversal by pairing adjacent entries as
+        // (q0, q4), (q2, q6), (q1, q5), and (q3, q7).
+        for pair in block.chunks(2) {
+            left.push(pair[0]);
+            right.push(pair[1]);
+        }
+    }
+    let mut stage1_sum = alloc::vec![C::AffineExt::identity(); blocks * 4];
+    let mut stage1_difference = alloc::vec![C::AffineExt::identity(); blocks * 4];
+    identity_free = affine_add_sub_pairs::<C>(
+        &left,
+        &right,
+        &mut stage1_sum,
+        &mut stage1_difference,
+        &mut scratch,
+        identity_free,
+    );
+
+    left.clear();
+    right.clear();
+    left.reserve(blocks * 3);
+    right.reserve(blocks * 3);
+    for block in 0..blocks {
+        let offset = block * 4;
+        left.extend_from_slice(&[
+            stage1_sum[offset],
+            stage1_sum[offset + 2],
+            stage1_difference[offset + 2],
+        ]);
+        right.extend_from_slice(&[
+            stage1_sum[offset + 1],
+            stage1_sum[offset + 3],
+            stage1_difference[offset + 3],
+        ]);
+    }
+    let mut stage2_sum = alloc::vec![C::AffineExt::identity(); blocks * 3];
+    let mut stage2_difference = alloc::vec![C::AffineExt::identity(); blocks * 3];
+    identity_free = affine_add_sub_pairs::<C>(
+        &left,
+        &right,
+        &mut stage2_sum,
+        &mut stage2_difference,
+        &mut scratch,
+        identity_free,
+    );
+
+    let mut scalar_inputs: [Vec<C>; 3] = [
+        Vec::with_capacity(blocks * 2),
+        Vec::with_capacity(blocks),
+        Vec::with_capacity(blocks),
+    ];
+    for block in 0..blocks {
+        let stage1 = block * 4;
+        let stage2 = block * 3;
+        scalar_inputs[0].extend_from_slice(&[
+            C::from(stage2_difference[stage2 + 1]),
+            C::from(stage1_difference[stage1 + 1]),
+        ]);
+        scalar_inputs[1].push(C::from(stage2_sum[stage2 + 2]));
+        scalar_inputs[2].push(C::from(stage2_difference[stage2 + 2]));
+    }
+
+    let products = mul_same_scalars_affine::<C>(scalar_inputs.into(), &scalars);
+
+    left.clear();
+    right.clear();
+    left.reserve(blocks * 4);
+    right.reserve(blocks * 4);
+    for block in 0..blocks {
+        let stage1 = block * 4;
+        let stage2 = block * 3;
+        let root8_squared_offset = block * 2;
+        left.extend_from_slice(&[
+            stage2_sum[stage2],
+            stage2_difference[stage2],
+            stage1_difference[stage1],
+            products[1][block],
+        ]);
+        right.extend_from_slice(&[
+            stage2_sum[stage2 + 1],
+            products[0][root8_squared_offset],
+            products[0][root8_squared_offset + 1],
+            products[2][block],
+        ]);
+    }
+    let mut stage3_sum = alloc::vec![C::AffineExt::identity(); blocks * 4];
+    let mut stage3_difference = alloc::vec![C::AffineExt::identity(); blocks * 4];
+    identity_free = affine_add_sub_pairs::<C>(
+        &left,
+        &right,
+        &mut stage3_sum,
+        &mut stage3_difference,
+        &mut scratch,
+        identity_free,
+    );
+
+    left.clear();
+    right.clear();
+    left.reserve(blocks * 2);
+    right.reserve(blocks * 2);
+    for block in 0..blocks {
+        let offset = block * 4;
+        left.extend_from_slice(&[stage3_sum[offset + 2], stage3_difference[offset + 2]]);
+        right.extend_from_slice(&[stage3_sum[offset + 3], stage3_difference[offset + 3]]);
+    }
+    let mut stage4_sum = alloc::vec![C::AffineExt::identity(); blocks * 2];
+    let mut stage4_difference = alloc::vec![C::AffineExt::identity(); blocks * 2];
+    identity_free = affine_add_sub_pairs::<C>(
+        &left,
+        &right,
+        &mut stage4_sum,
+        &mut stage4_difference,
+        &mut scratch,
+        identity_free,
+    );
+
+    for (block, output) in points.chunks_mut(8).enumerate() {
+        let stage3 = block * 4;
+        let stage4 = block * 2;
+        output[0] = stage3_sum[stage3];
+        output[4] = stage3_difference[stage3];
+        output[2] = stage3_sum[stage3 + 1];
+        output[6] = stage3_difference[stage3 + 1];
+        output[1] = stage4_sum[stage4];
+        output[5] = stage4_difference[stage4];
+        output[3] = stage4_sum[stage4 + 1];
+        output[7] = stage4_difference[stage4 + 1];
+    }
+    identity_free
+}
+
+fn mul_same_scalars_affine<C: GlvParams>(
+    scalar_inputs: Vec<Vec<C>>,
+    scalars: &[Decomposed<C>],
+) -> Vec<Vec<C::AffineExt>> {
+    assert_eq!(scalar_inputs.len(), scalars.len());
+    #[cfg(feature = "multicore")]
+    {
+        scalar_inputs
+            .into_par_iter()
+            .zip(scalars.par_iter())
+            .map(|(points, scalar)| {
+                let threads = maybe_rayon::current_num_threads();
+                let batch_len = points.len().div_ceil(threads).max(BATCH_AFFINE_MIN_POINTS);
+                let batches: Vec<Vec<_>> = points
+                    .par_chunks(batch_len)
+                    .map(|points| Table::<C>::mul_decomposed_same_scalar_affine(points, scalar))
+                    .collect();
+                batches.into_iter().flatten().collect()
+            })
+            .collect()
+    }
+    #[cfg(not(feature = "multicore"))]
+    {
+        scalar_inputs
+            .into_iter()
+            .zip(scalars)
+            .map(|(points, scalar)| Table::<C>::mul_decomposed_same_scalar_affine(&points, scalar))
+            .collect()
+    }
+}
+
+/// Computes arbitrary affine `L + R` and `L - R` pairs with one shared
+/// inversion. This is the non-layer-shaped counterpart to
+/// [`affine_twiddle_add_sub_layer`].
+fn affine_add_sub_pairs<C: GlvParams>(
+    left: &[C::AffineExt],
+    right: &[C::AffineExt],
+    sums: &mut [C::AffineExt],
+    differences: &mut [C::AffineExt],
+    scratch: &mut AffineTwiddleScratch<C::Base>,
+    identity_free: bool,
+) -> bool {
+    assert_eq!(left.len(), right.len());
+    assert_eq!(left.len(), sums.len());
+    assert_eq!(left.len(), differences.len());
+
+    if !identity_free
+        && left
+            .iter()
+            .zip(right)
+            .any(|(left, right)| bool::from(left.is_identity()) || bool::from(right.is_identity()))
+    {
+        projective_add_sub_pairs::<C>(left, right, sums, differences);
+        return false;
+    }
+
+    scratch.denominators.resize(left.len(), C::Base::ZERO);
+    scratch.prefixes.resize(left.len(), C::Base::ZERO);
+    let mut acc = C::Base::ONE;
+    for (((left, right), denominator), prefix) in left
+        .iter()
+        .zip(right)
+        .zip(scratch.denominators.iter_mut())
+        .zip(scratch.prefixes.iter_mut())
+    {
+        let (left_x, _) = C::affine_xy(left);
+        let (right_x, _) = C::affine_xy(right);
+        *denominator = right_x - left_x;
+        *prefix = acc;
+        acc *= *denominator;
+    }
+
+    let inverse = acc.invert();
+    if !bool::from(inverse.is_some()) {
+        projective_add_sub_pairs::<C>(left, right, sums, differences);
+        return false;
+    }
+    acc = inverse.unwrap();
+    sums.copy_from_slice(left);
+    for i in (0..left.len()).rev() {
+        let denominator_inverse = acc * scratch.prefixes[i];
+        acc *= scratch.denominators[i];
+        apply_affine_twiddle::<C>(
+            &mut sums[i],
+            &mut differences[i],
+            &right[i],
+            denominator_inverse,
+        );
+    }
+    // A codelet can retain intermediates that are not part of this batch and
+    // feed them into a later batch. A successful batch therefore cannot
+    // strengthen the invariant for the entire codelet after an earlier
+    // exceptional fallback made it false.
+    identity_free
+}
+
+fn projective_add_sub_pairs<C: GlvParams>(
+    left: &[C::AffineExt],
+    right: &[C::AffineExt],
+    sums: &mut [C::AffineExt],
+    differences: &mut [C::AffineExt],
+) {
+    let mut projective = Vec::with_capacity(left.len() * 2);
+    for (left, right) in left.iter().zip(right) {
+        let left = C::from(*left);
+        let right = C::from(*right);
+        projective.extend_from_slice(&[left + right, left - right]);
+    }
+    let mut affine = alloc::vec![C::AffineExt::identity(); projective.len()];
+    C::batch_normalize(&projective, &mut affine);
+    for (i, pair) in affine.chunks(2).enumerate() {
+        sums[i] = pair[0];
+        differences[i] = pair[1];
     }
 }
 
@@ -2334,8 +2883,39 @@ mod tests {
                     _ => generator.double(),
                 })
                 .collect();
+            let hash_to_curve = C::hash_to_curve("z.cash:test-affine-fft");
+            let hashed: Vec<C> = (0..n)
+                .map(|i| hash_to_curve(&(i as u64).to_le_bytes()))
+                .collect();
 
-            for input in [regular, exceptional] {
+            let mut inputs = alloc::vec![regular, exceptional, hashed];
+            if log_n == 3 {
+                // The first radix-2 stage produces an identity difference,
+                // which the fused FFT8 codelet retains while it processes a
+                // separate, identity-free branch. This checks that the clean
+                // branch does not incorrectly strengthen the invariant for
+                // the retained identity before the branches rejoin.
+                inputs.push(
+                    [1, 4, 2, 7, 1, 6, 3, 10]
+                        .map(|multiple| generator * C::ScalarExt::from(multiple))
+                        .into(),
+                );
+            }
+            if log_n == 4 {
+                // Exercise the analogous branch-and-rejoin path in the fused
+                // FFT16 codelet. The equal points at indices zero and eight
+                // produce an identity that the even-input branch omits.
+                inputs.push(
+                    [
+                        398_522, 248_420, 840_455, 798_528, 624_324, 663_377, 434_118, 357_938,
+                        398_522, 7_942, 752_351, 727_850, 16_691, 106_822, 861_757, 814_544,
+                    ]
+                    .map(|multiple| generator * C::ScalarExt::from(multiple))
+                    .into(),
+                );
+            }
+
+            for input in inputs {
                 let mut expected = input.clone();
                 reference(&mut expected, omega, log_n);
                 let mut actual = alloc::vec![C::AffineExt::identity(); n];
