@@ -452,6 +452,10 @@ fn joint_digits(mut a: i128, mut b: i128) -> ([u8; MAX_JOINT_DIGITS], usize) {
 /// was 512: the cheaper inversion moved break-even to 64, and dropping
 /// `ff::BatchInverter`'s per-element zero handling moved it to 32.)
 const BATCH_AFFINE_MIN_POINTS: usize = 32;
+// This range is tuned for the k = 11 parameter generation used by Orchard.
+// Larger domains retain the point-major schedule above the measured range.
+const TWIDDLE_MAJOR_MIN_CHUNK: usize = 16;
+const TWIDDLE_MAJOR_MAX_CHUNK: usize = 2048;
 
 /// Montgomery-batched inversion for a nonempty slice of provably nonzero
 /// values: prefix products into `scratch`, one shared field inversion,
@@ -1036,7 +1040,7 @@ impl<C: GlvParams> Table<C> {
                 if t.is_identity() {
                     C::identity()
                 } else {
-                    products.next().expect("one product per live table")
+                    C::from(products.next().expect("one product per live table"))
                 }
             })
             .collect()
@@ -1047,7 +1051,7 @@ impl<C: GlvParams> Table<C> {
     /// [`affine_ladder_safe`] (so no denominator below is zero and no
     /// accumulator is ever the identity).
     #[allow(clippy::needless_range_loop)]
-    fn batch_affine_ladder(live: &[&Self], k: &Decomposed<C>) -> Vec<C> {
+    fn batch_affine_ladder(live: &[&Self], k: &Decomposed<C>) -> Vec<C::AffineExt> {
         let n = live.len();
         // Affine accumulators (structure-of-arrays), initialized from the
         // top digit — the ladder's first column is the digit itself.
@@ -1119,8 +1123,37 @@ impl<C: GlvParams> Table<C> {
 
         xs.into_iter()
             .zip(ys)
-            .map(|(x, y)| C::from(C::affine_unchecked(x, y, private::CrateToken(()))))
+            .map(|(x, y)| C::affine_unchecked(x, y, private::CrateToken(())))
             .collect()
+    }
+
+    /// Multiplies one scalar by a contiguous batch of points, returning
+    /// affine results without an intermediate projective conversion.
+    fn mul_decomposed_same_scalar_affine(
+        points: &[C],
+        scalar: &Decomposed<C>,
+    ) -> Vec<C::AffineExt> {
+        if points.is_empty() {
+            return Vec::new();
+        }
+
+        let tables = Self::batch(points);
+        let use_affine = tables.len() >= BATCH_AFFINE_MIN_POINTS
+            && tables.iter().all(|table| !table.is_identity())
+            && scalar.len > 0
+            && scalar.affine_ladder_safe;
+        if !use_affine {
+            let projective: Vec<_> = tables
+                .iter()
+                .map(|table| table.mul_decomposed(scalar))
+                .collect();
+            let mut affine = alloc::vec![C::AffineExt::identity(); projective.len()];
+            C::batch_normalize(&projective, &mut affine);
+            return affine;
+        }
+
+        let tables: Vec<_> = tables.iter().collect();
+        Self::batch_affine_ladder(&tables, scalar)
     }
 
     /// One affine product for each `(point, scalar)` pair. This is the FFT
@@ -1352,6 +1385,10 @@ pub(crate) fn fft_vartime<C: GlvParams>(
     assert_eq!(input.len(), output.len());
     assert_eq!(input.len(), 1usize << log_n);
     C::batch_normalize(input, output);
+    // If one layer starts without identities and every `x_R - x_L` is
+    // nonzero, both `L + R` and `L - R` are nonidentity. Carry that invariant
+    // across layers instead of checking both inputs to every butterfly.
+    let mut identity_free = output.iter().all(|point| !bool::from(point.is_identity()));
 
     for i in 0..output.len() {
         let reversed = bitreverse(i, log_n as usize);
@@ -1369,10 +1406,68 @@ pub(crate) fn fft_vartime<C: GlvParams>(
         })
         .collect();
 
+    let mut butterfly_scratch = AffineTwiddleScratch::new();
     let mut chunk = 2;
     let mut twiddle_stride = output.len() / 2;
     while chunk <= output.len() {
         let half = chunk / 2;
+        #[cfg(feature = "multicore")]
+        let use_twiddle_major = maybe_rayon::current_num_threads() > 1
+            && (TWIDDLE_MAJOR_MIN_CHUNK..=TWIDDLE_MAJOR_MAX_CHUNK).contains(&chunk);
+        #[cfg(not(feature = "multicore"))]
+        let use_twiddle_major = false;
+        // Transpose the point-major pairs into one contiguous batch per
+        // twiddle. This shares the scalar schedule and exposes each twiddle
+        // batch as an independent Rayon task. With one worker, the repeated
+        // table normalizations cost more than the transpose saves.
+        if use_twiddle_major {
+            #[cfg(feature = "multicore")]
+            let products: Vec<Vec<_>> = (1..half)
+                .into_par_iter()
+                .map(|j| {
+                    let points: Vec<_> = output
+                        .chunks(chunk)
+                        .map(|block| C::from(block[half + j]))
+                        .collect();
+                    Table::<C>::mul_decomposed_same_scalar_affine(
+                        &points,
+                        &twiddles[j * twiddle_stride],
+                    )
+                })
+                .collect();
+            #[cfg(not(feature = "multicore"))]
+            let products: Vec<Vec<_>> = (1..half)
+                .map(|j| {
+                    let points: Vec<_> = output
+                        .chunks(chunk)
+                        .map(|block| C::from(block[half + j]))
+                        .collect();
+                    Table::<C>::mul_decomposed_same_scalar_affine(
+                        &points,
+                        &twiddles[j * twiddle_stride],
+                    )
+                })
+                .collect();
+
+            let blocks = output.len() / chunk;
+            let mut right_scaled = Vec::with_capacity(output.len() / 2);
+            for (block_index, block) in output.chunks(chunk).enumerate() {
+                right_scaled.push(block[half]);
+                right_scaled.extend(products.iter().map(|products| products[block_index]));
+            }
+            debug_assert_eq!(blocks, products.first().map_or(0, Vec::len));
+            identity_free = affine_twiddle_add_sub_layer::<C>(
+                output,
+                &right_scaled,
+                chunk,
+                &mut butterfly_scratch,
+                identity_free,
+            );
+            chunk *= 2;
+            twiddle_stride /= 2;
+            continue;
+        }
+
         let nontrivial = output.len() / 2 - output.len() / chunk;
         let mut points = Vec::with_capacity(nontrivial);
         let mut scalars = Vec::with_capacity(nontrivial);
@@ -1408,75 +1503,154 @@ pub(crate) fn fft_vartime<C: GlvParams>(
         }
         assert!(products.next().is_none());
 
-        affine_butterfly_layer::<C>(output, &right_scaled, chunk);
+        identity_free = affine_twiddle_add_sub_layer::<C>(
+            output,
+            &right_scaled,
+            chunk,
+            &mut butterfly_scratch,
+            identity_free,
+        );
         chunk *= 2;
         twiddle_stride /= 2;
     }
 }
 
-fn affine_butterfly_layer<C: GlvParams>(
+#[inline(always)]
+fn apply_affine_twiddle<C: GlvParams>(
+    left: &mut C::AffineExt,
+    output: &mut C::AffineExt,
+    right: &C::AffineExt,
+    inverse: C::Base,
+) {
+    let (left_x, left_y) = C::affine_xy(left);
+    let (right_x, right_y) = C::affine_xy(right);
+
+    let plus_slope = (right_y - left_y) * inverse;
+    let minus_slope = (-right_y - left_y) * inverse;
+    let plus_x = plus_slope.square() - left_x - right_x;
+    let minus_x = minus_slope.square() - left_x - right_x;
+    let plus_y = plus_slope * (left_x - plus_x) - left_y;
+    let minus_y = minus_slope * (left_x - minus_x) - left_y;
+
+    *left = C::affine_unchecked(plus_x, plus_y, private::CrateToken(()));
+    *output = C::affine_unchecked(minus_x, minus_y, private::CrateToken(()));
+}
+
+struct AffineTwiddleScratch<F> {
+    denominators: Vec<F>,
+    prefixes: Vec<F>,
+}
+
+impl<F> AffineTwiddleScratch<F> {
+    fn new() -> Self {
+        Self {
+            denominators: Vec::new(),
+            prefixes: Vec::new(),
+        }
+    }
+}
+
+/// Computes every `L + R` and `L - R` pair in one FFT layer. Both affine
+/// chords share `x_R - x_L`, so each inverse is consumed directly during
+/// batch-inversion back-substitution.
+fn affine_twiddle_add_sub_layer<C: GlvParams>(
     points: &mut [C::AffineExt],
     right_scaled: &[C::AffineExt],
     chunk: usize,
-) {
+    scratch: &mut AffineTwiddleScratch<C::Base>,
+    identity_free: bool,
+) -> bool {
     let half = chunk / 2;
     assert_eq!(right_scaled.len(), points.len() / 2);
 
-    let mut denominators = Vec::with_capacity(right_scaled.len());
-    let mut safe = true;
+    if !identity_free
+        && points
+            .chunks(chunk)
+            .zip(right_scaled.chunks(half))
+            .any(|(block, scaled)| {
+                block[..half].iter().zip(scaled).any(|(left, right)| {
+                    bool::from(left.is_identity()) || bool::from(right.is_identity())
+                })
+            })
+    {
+        projective_twiddle_add_sub_layer::<C>(points, right_scaled, chunk);
+        return false;
+    }
+
+    scratch
+        .denominators
+        .resize(right_scaled.len(), C::Base::ZERO);
+    scratch.prefixes.resize(right_scaled.len(), C::Base::ZERO);
+    let mut acc = C::Base::ONE;
+    let mut slots = scratch
+        .denominators
+        .iter_mut()
+        .zip(scratch.prefixes.iter_mut());
     for (block, scaled) in points.chunks(chunk).zip(right_scaled.chunks(half)) {
         for (left, right) in block[..half].iter().zip(scaled) {
             let (left_x, _) = C::affine_xy(left);
             let (right_x, _) = C::affine_xy(right);
             let denominator = right_x - left_x;
-            safe &= !bool::from(left.is_identity())
-                && !bool::from(right.is_identity())
-                && !denominator.is_zero_vartime();
-            denominators.push(denominator);
+            let (denominator_slot, prefix_slot) =
+                slots.next().expect("one scratch slot per butterfly");
+            *denominator_slot = denominator;
+            *prefix_slot = acc;
+            acc *= denominator;
         }
     }
+    assert!(slots.next().is_none());
 
-    if !safe {
-        let mut projective = alloc::vec![C::identity(); points.len()];
-        for ((block, output), scaled) in points
-            .chunks(chunk)
-            .zip(projective.chunks_mut(chunk))
-            .zip(right_scaled.chunks(half))
-        {
-            for j in 0..half {
-                let left = C::from(block[j]);
-                let right = C::from(scaled[j]);
-                output[j] = left + right;
-                output[half + j] = left - right;
-            }
-        }
-        C::batch_normalize(&projective, points);
-        return;
+    // One failed inversion detects every `x_L == x_R` exceptional case.
+    let inverse = acc.invert();
+    if !bool::from(inverse.is_some()) {
+        projective_twiddle_add_sub_layer::<C>(points, right_scaled, chunk);
+        return false;
     }
-
-    let mut scratch = alloc::vec![C::Base::ZERO; denominators.len()];
-    batch_invert_nonzero(&mut denominators, &mut scratch);
-    let mut inverses = denominators.into_iter();
-    for (block, scaled) in points.chunks_mut(chunk).zip(right_scaled.chunks(half)) {
-        let (left, right_output) = block.split_at_mut(half);
-        for ((left, right_output), right) in left.iter_mut().zip(right_output).zip(scaled) {
-            let inverse = inverses.next().expect("one inverse per butterfly");
-            let (left_x, left_y) = C::affine_xy(left);
-            let (right_x, right_y) = C::affine_xy(right);
-
-            let plus_slope = (right_y - left_y) * inverse;
-            let plus_x = plus_slope.square() - left_x - right_x;
-            let plus_y = plus_slope * (left_x - plus_x) - left_y;
-
-            let minus_slope = (-right_y - left_y) * inverse;
-            let minus_x = minus_slope.square() - left_x - right_x;
-            let minus_y = minus_slope * (left_x - minus_x) - left_y;
-
-            *left = C::affine_unchecked(plus_x, plus_y, private::CrateToken(()));
-            *right_output = C::affine_unchecked(minus_x, minus_y, private::CrateToken(()));
+    acc = inverse.unwrap();
+    let mut inversion_scratch = scratch
+        .denominators
+        .iter()
+        .zip(scratch.prefixes.iter())
+        .rev();
+    for (block, scaled) in points
+        .chunks_mut(chunk)
+        .zip(right_scaled.chunks(half))
+        .rev()
+    {
+        let (left, output) = block.split_at_mut(half);
+        for ((left, output), right) in left.iter_mut().zip(output).zip(scaled).rev() {
+            let (denominator, prefix) = inversion_scratch
+                .next()
+                .expect("one scratch slot per butterfly");
+            let denominator_inverse = acc * prefix;
+            acc *= denominator;
+            apply_affine_twiddle::<C>(left, output, right, denominator_inverse);
         }
     }
-    assert!(inverses.next().is_none());
+    assert!(inversion_scratch.next().is_none());
+    true
+}
+
+fn projective_twiddle_add_sub_layer<C: GlvParams>(
+    points: &mut [C::AffineExt],
+    right_scaled: &[C::AffineExt],
+    chunk: usize,
+) {
+    let half = chunk / 2;
+    let mut projective = alloc::vec![C::identity(); points.len()];
+    for ((block, output), scaled) in points
+        .chunks(chunk)
+        .zip(projective.chunks_mut(chunk))
+        .zip(right_scaled.chunks(half))
+    {
+        for j in 0..half {
+            let left = C::from(block[j]);
+            let right = C::from(scaled[j]);
+            output[j] = left + right;
+            output[half + j] = left - right;
+        }
+    }
+    C::batch_normalize(&projective, points);
 }
 
 #[cfg(test)]
