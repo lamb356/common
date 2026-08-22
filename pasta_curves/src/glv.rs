@@ -523,6 +523,320 @@ fn batch_invert_nonzero<F: Field>(values: &mut [F], scratch: &mut [F]) {
     }
 }
 
+/// Small MSMs do not amortize GLV decomposition, affine endomorphism mapping,
+/// and the two temporary vectors.
+const MIN_GLV_MULTIEXP_TERMS: usize = 256;
+
+/// Each GLV decomposition component has magnitude strictly below `2^127`.
+const GLV_COMPONENT_BITS: usize = 127;
+
+/// Estimates the dominant group work in a Signed-Booth MSM.
+///
+/// The model counts one unit for each point/window visit, two bucket additions
+/// per bucket/window for summation by parts, and each accumulator doubling.
+/// It deliberately omits GLV setup costs; [`MIN_GLV_MULTIEXP_TERMS`] handles
+/// their small-MSM amortization separately.
+fn estimated_signed_booth_work(
+    terms: usize,
+    scalar_bits: usize,
+    window_bits: usize,
+) -> Option<usize> {
+    let windows = scalar_bits.checked_div(window_bits)?.checked_add(1)?;
+    let bucket_shift = u32::try_from(window_bits.checked_sub(1)?).ok()?;
+    let buckets = 1usize.checked_shl(bucket_shift)?;
+
+    let point_visits = terms.checked_mul(windows)?;
+    let bucket_additions = buckets.checked_mul(windows)?.checked_mul(2)?;
+    let doublings = window_bits.checked_mul(windows.checked_sub(1)?)?;
+    point_visits
+        .checked_add(bucket_additions)?
+        .checked_add(doublings)
+}
+
+/// Floors of `e^k` for `k = 4..=22`.
+///
+/// These preserve the established `ceil(ln(terms))` window schedule without
+/// requiring floating-point transcendental functions, which are unavailable
+/// in `no_std` builds.
+const DEFAULT_MULTIEXP_WINDOW_THRESHOLDS: [u32; 19] = [
+    54,
+    148,
+    403,
+    1_096,
+    2_980,
+    8_103,
+    22_026,
+    59_874,
+    162_754,
+    442_413,
+    1_202_604,
+    3_269_017,
+    8_886_110,
+    24_154_952,
+    65_659_969,
+    178_482_300,
+    485_165_195,
+    1_318_815_734,
+    3_584_912_846,
+];
+
+fn default_multiexp_window_bits(terms: usize) -> Option<usize> {
+    if terms < 4 {
+        Some(1)
+    } else if terms < 32 {
+        Some(3)
+    } else {
+        let terms = u32::try_from(terms).ok()?;
+        let threshold = DEFAULT_MULTIEXP_WINDOW_THRESHOLDS
+            .iter()
+            .position(|upper| terms <= *upper)
+            .unwrap_or(DEFAULT_MULTIEXP_WINDOW_THRESHOLDS.len());
+        Some(4 + threshold)
+    }
+}
+
+fn scalar_repr_bits<C: GlvParams>() -> Option<usize> {
+    <C::ScalarExt as PrimeField>::Repr::default()
+        .as_ref()
+        .len()
+        .checked_mul(u8::BITS as usize)
+}
+
+/// Selects the backend's signed-window width.
+///
+/// The accepted serial sweep found a wider successor useful only when the
+/// default selected 9 bits. Keep that comparison narrow because the operation
+/// model deliberately omits cache behavior.
+fn multiexp_window_bits<C: GlvParams>(terms: usize, num_threads: usize) -> Option<usize> {
+    let window_bits = default_multiexp_window_bits(terms)?;
+    if num_threads != 1 || window_bits != 9 {
+        return Some(window_bits);
+    }
+
+    let scalar_bits = scalar_repr_bits::<C>()?;
+    let next_window_bits = window_bits.checked_add(1)?;
+    let current = estimated_signed_booth_work(terms, scalar_bits, window_bits);
+    let next = estimated_signed_booth_work(terms, scalar_bits, next_window_bits);
+    Some(
+        if matches!((current, next), (Some(current), Some(next)) if next < current) {
+            next_window_bits
+        } else {
+            window_bits
+        },
+    )
+}
+
+/// Chooses GLV only when its estimated Signed-Booth work is lower.
+fn should_use_glv_multiexp<C: GlvParams>(terms: usize, window_bits: usize) -> bool {
+    if terms < MIN_GLV_MULTIEXP_TERMS {
+        return false;
+    }
+
+    let scalar_bits = scalar_repr_bits::<C>();
+    let glv_terms = terms.checked_mul(2);
+
+    match (scalar_bits, glv_terms) {
+        (Some(scalar_bits), Some(glv_terms)) => {
+            match (
+                estimated_signed_booth_work(terms, scalar_bits, window_bits),
+                estimated_signed_booth_work(glv_terms, GLV_COMPONENT_BITS, window_bits),
+            ) {
+                (Some(generic), Some(glv)) => glv < generic,
+                _ => false,
+            }
+        }
+        _ => false,
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct SignedMagnitude {
+    negative: bool,
+    magnitude: u128,
+}
+
+impl From<(bool, u128)> for SignedMagnitude {
+    fn from((negative, magnitude): (bool, u128)) -> Self {
+        Self {
+            negative,
+            magnitude,
+        }
+    }
+}
+
+/// Converts decomposed halves into the representation used by the
+/// Signed-Booth MSM, rejecting values outside the decomposition bound.
+///
+/// This check must remain on the MSM path because it does not construct a
+/// [`Decomposed`], whose constructor enforces the same bound. Returning
+/// `None` lets the caller use the generic MSM instead of panicking. The
+/// rejection boundary is covered by
+/// `multiexp_component_guard_returns_none_out_of_bounds`.
+fn checked_signed_magnitudes(
+    (first, second): ((bool, u128), (bool, u128)),
+) -> Option<(SignedMagnitude, SignedMagnitude)> {
+    if first.1 >> GLV_COMPONENT_BITS == 0 && second.1 >> GLV_COMPONENT_BITS == 0 {
+        Some((first.into(), second.into()))
+    } else {
+        None
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct BoothDigit {
+    magnitude: usize,
+    negative: bool,
+}
+
+/// Extracts one signed-Booth digit and folds in the component's overall sign.
+fn booth_digit(component: SignedMagnitude, window_bits: usize, window: usize) -> BoothDigit {
+    let window_start = window * window_bits;
+    let radix = 1usize << window_bits;
+    let value = if window_start < u128::BITS as usize {
+        ((component.magnitude >> window_start) as usize) & (radix - 1)
+    } else {
+        0
+    };
+    let overlap = if window_start == 0 {
+        0
+    } else {
+        ((component.magnitude >> (window_start - 1)) & 1) as usize
+    };
+
+    let (magnitude, digit_negative) = if value < radix / 2 {
+        (value + overlap, false)
+    } else {
+        let magnitude = radix - value - overlap;
+        (magnitude, magnitude != 0)
+    };
+    BoothDigit {
+        magnitude,
+        negative: magnitude != 0 && (digit_negative ^ component.negative),
+    }
+}
+
+#[derive(Clone, Copy)]
+enum MultiexpBucket<C: GlvParams> {
+    None,
+    Affine(C::AffineExt),
+    Projective(C),
+}
+
+impl<C: GlvParams> MultiexpBucket<C> {
+    fn add_assign(&mut self, point: C::AffineExt) {
+        *self = match *self {
+            Self::None => Self::Affine(point),
+            Self::Affine(current) => Self::Projective(current + point),
+            Self::Projective(mut current) => {
+                current += point;
+                Self::Projective(current)
+            }
+        };
+    }
+
+    fn add(self, mut other: C) -> C {
+        match self {
+            Self::None => other,
+            Self::Affine(point) => {
+                other += point;
+                other
+            }
+            Self::Projective(point) => other + point,
+        }
+    }
+}
+
+fn add_digit<C: GlvParams>(
+    buckets: &mut [MultiexpBucket<C>],
+    digit: BoothDigit,
+    base: C::AffineExt,
+) {
+    if digit.magnitude != 0 {
+        let base = if digit.negative { -base } else { base };
+        buckets[digit.magnitude - 1].add_assign(base);
+    }
+}
+
+fn sum_buckets<C: GlvParams>(buckets: &[MultiexpBucket<C>]) -> C {
+    let mut running = C::identity();
+    let mut sum = C::identity();
+    for bucket in buckets.iter().rev() {
+        running = bucket.add(running);
+        sum += running;
+    }
+    sum
+}
+
+fn multiexp<C: GlvParams>(
+    components: &[(SignedMagnitude, SignedMagnitude)],
+    bases: &[C::AffineExt],
+    endo_bases: &[C::AffineExt],
+    window_bits: usize,
+) -> C {
+    debug_assert_eq!(components.len(), bases.len());
+    debug_assert_eq!(components.len(), endo_bases.len());
+
+    let window_count = GLV_COMPONENT_BITS / window_bits + 1;
+    let mut buckets = alloc::vec![MultiexpBucket::<C>::None; 1 << (window_bits - 1)];
+    let mut acc = C::identity();
+
+    for window in (0..window_count).rev() {
+        if window + 1 != window_count {
+            for _ in 0..window_bits {
+                acc = acc.double();
+            }
+        }
+
+        buckets.fill(MultiexpBucket::None);
+        for ((first, second), base, endo_base) in components
+            .iter()
+            .zip(bases)
+            .zip(endo_bases)
+            .map(|(((first, second), base), endo_base)| ((first, second), base, endo_base))
+        {
+            add_digit(
+                &mut buckets,
+                booth_digit(*first, window_bits, window),
+                *base,
+            );
+            add_digit(
+                &mut buckets,
+                booth_digit(*second, window_bits, window),
+                *endo_base,
+            );
+        }
+        acc += sum_buckets(&buckets);
+    }
+    acc
+}
+
+/// Attempts a GLV Signed-Booth multiscalar multiplication for a large Pasta
+/// MSM.
+pub(crate) fn try_multiexp<C: GlvParams>(
+    scalars: &[C::ScalarExt],
+    bases: &[C::AffineExt],
+) -> Option<C> {
+    assert_eq!(scalars.len(), bases.len());
+    let window_bits = multiexp_window_bits::<C>(scalars.len(), 1)?;
+    if !should_use_glv_multiexp::<C>(scalars.len(), window_bits) {
+        return None;
+    }
+
+    let components = scalars
+        .iter()
+        .map(decompose::<C>)
+        .map(checked_signed_magnitudes)
+        .collect::<Option<Vec<_>>>()?;
+    let endo_bases = bases
+        .iter()
+        .map(|base| {
+            let (x, y) = C::affine_xy(base);
+            C::affine_unchecked(x * C::Base::ZETA, y, private::CrateToken(()))
+        })
+        .collect::<Vec<_>>();
+    Some(multiexp(&components, bases, &endo_bases, window_bits))
+}
+
 /// The GLV digit window for one base point: the eight Eisenstein orbit
 /// representatives $[\Delta_i]P$ in affine coordinates, with each
 /// x-coordinate stored in all three $\zeta$-rotations (so applying the
@@ -874,7 +1188,7 @@ impl<C: GlvParams> Decomposed<C> {
         // The i128 recoding coefficients and the digit-array bound rely on
         // the half-width guarantee; enforce it in every build profile.
         assert!(
-            a1 >> 127 == 0 && a2 >> 127 == 0,
+            a1 >> GLV_COMPONENT_BITS == 0 && a2 >> GLV_COMPONENT_BITS == 0,
             "GLV half exceeds 127 bits"
         );
         let a = if neg1 { -(a1 as i128) } else { a1 as i128 };
@@ -893,6 +1207,57 @@ mod tests {
     use super::*;
     use crate::arithmetic::adc;
     use ff::Field;
+
+    #[test]
+    fn multiexp_backend_selection() {
+        assert_eq!(default_multiexp_window_bits(31), Some(3));
+        assert_eq!(default_multiexp_window_bits(32), Some(4));
+        assert_eq!(default_multiexp_window_bits(54), Some(4));
+        assert_eq!(default_multiexp_window_bits(55), Some(5));
+        assert_eq!(default_multiexp_window_bits(2_980), Some(8));
+        assert_eq!(default_multiexp_window_bits(2_981), Some(9));
+        assert_eq!(default_multiexp_window_bits(8_103), Some(9));
+        assert_eq!(default_multiexp_window_bits(8_104), Some(10));
+        assert_eq!(default_multiexp_window_bits(u32::MAX as usize), Some(23));
+
+        assert_eq!(estimated_signed_booth_work(2_150, 256, 8), Some(79_654));
+        assert_eq!(
+            estimated_signed_booth_work(4_300, GLV_COMPONENT_BITS, 8),
+            Some(73_016)
+        );
+        assert_eq!(estimated_signed_booth_work(5_678, 256, 9), Some(179_762));
+        assert_eq!(
+            estimated_signed_booth_work(11_356, GLV_COMPONENT_BITS, 9),
+            Some(178_146)
+        );
+
+        assert_eq!(multiexp_window_bits::<pallas::Point>(2_150, 1), Some(8));
+        assert_eq!(multiexp_window_bits::<pallas::Point>(2_990, 1), Some(9));
+        assert_eq!(multiexp_window_bits::<pallas::Point>(3_924, 1), Some(9));
+        assert_eq!(multiexp_window_bits::<pallas::Point>(3_925, 1), Some(10));
+        assert_eq!(multiexp_window_bits::<pallas::Point>(5_678, 1), Some(10));
+        assert_eq!(multiexp_window_bits::<pallas::Point>(5_678, 8), Some(9));
+
+        assert!(!should_use_glv_multiexp::<pallas::Point>(255, 8));
+        assert!(should_use_glv_multiexp::<pallas::Point>(2_150, 8));
+        assert!(should_use_glv_multiexp::<vesta::Point>(5_678, 10));
+
+        // At sufficiently large sizes, doubling the term count outweighs the
+        // shorter components for this unchanged window width.
+        assert!(!should_use_glv_multiexp::<pallas::Point>(1_000_000, 14));
+        assert!(!should_use_glv_multiexp::<pallas::Point>(usize::MAX, 14));
+    }
+
+    #[test]
+    fn multiexp_component_guard_returns_none_out_of_bounds() {
+        let in_bounds = GLV_COMPONENT_BITS - 1;
+        let out_of_bounds = 1u128 << GLV_COMPONENT_BITS;
+
+        assert!(checked_signed_magnitudes(((false, 0), (true, 1))).is_some());
+        assert!(checked_signed_magnitudes(((false, 1u128 << in_bounds), (false, 0))).is_some());
+        assert!(checked_signed_magnitudes(((false, out_of_bounds), (false, 0))).is_none());
+        assert!(checked_signed_magnitudes(((false, 0), (true, out_of_bounds))).is_none());
+    }
 
     #[test]
     fn integer_multiplication_carry_boundaries() {
@@ -1011,7 +1376,7 @@ mod tests {
                 max_tail = max_tail.max(tail(a, b, &mut memo));
             }
         }
-        assert_eq!(max_tail, MAX_JOINT_DIGITS - 127);
+        assert_eq!(max_tail, MAX_JOINT_DIGITS - GLV_COMPONENT_BITS);
         // The box is closed under recoding: every reached state stays in it.
         for &(a, b) in memo.keys() {
             assert!(a.abs() <= 6 && b.abs() <= 6, "recoding escaped the box");
@@ -1178,8 +1543,8 @@ mod tests {
         let lambda = C::ScalarExt::ZETA;
         let check = |k: C::ScalarExt| {
             let ((neg1, a1), (neg2, a2)) = decompose::<C>(&k);
-            assert!(a1 >> 127 == 0, "k1 exceeds 127 bits");
-            assert!(a2 >> 127 == 0, "k2 exceeds 127 bits");
+            assert!(a1 >> GLV_COMPONENT_BITS == 0, "k1 exceeds 127 bits");
+            assert!(a2 >> GLV_COMPONENT_BITS == 0, "k2 exceeds 127 bits");
             let s1 = C::ScalarExt::from_u128(a1);
             let s1 = if neg1 { -s1 } else { s1 };
             let s2 = C::ScalarExt::from_u128(a2);
@@ -1353,7 +1718,7 @@ mod tests {
             lambda,
             -lambda,
             lambda + C::ScalarExt::ONE,
-            C::ScalarExt::from_u128((1u128 << 127) - 1),
+            C::ScalarExt::from_u128((1u128 << GLV_COMPONENT_BITS) - 1),
             scalars::<C::ScalarExt>(1).next().unwrap(),
         ];
         for size in sizes {
@@ -1534,9 +1899,9 @@ mod tests {
             -lambda,
             lambda + C::ScalarExt::ONE,
             C::ScalarExt::from(u64::MAX),
-            C::ScalarExt::from_u128((1u128 << 127) - 1),
-            C::ScalarExt::from_u128(1u128 << 127),
-            C::ScalarExt::from_u128((1u128 << 127) + 1),
+            C::ScalarExt::from_u128((1u128 << GLV_COMPONENT_BITS) - 1),
+            C::ScalarExt::from_u128(1u128 << GLV_COMPONENT_BITS),
+            C::ScalarExt::from_u128((1u128 << GLV_COMPONENT_BITS) + 1),
         ];
         let g = C::generator();
         let points = [g, g * (lambda + C::ScalarExt::from(42))];
@@ -1611,7 +1976,7 @@ mod tests {
         // In bounds, reconstructs, and multiplies correctly as shipped.
         let ((neg1, a1), (neg2, a2)) = decompose::<C>(&k);
         assert!(
-            a1 >> 127 == 0 && a2 >> 127 == 0,
+            a1 >> GLV_COMPONENT_BITS == 0 && a2 >> GLV_COMPONENT_BITS == 0,
             "witness must be in bounds"
         );
         let s1 = C::ScalarExt::from_u128(a1);
@@ -1643,7 +2008,7 @@ mod tests {
         );
         let mag = u128::from(mag[0]) | (u128::from(mag[1]) << 64);
         assert!(
-            mag >> 127 == 1,
+            mag >> GLV_COMPONENT_BITS == 1,
             "flipped G2 must push |k2| past 2^127 at this scalar"
         );
     }
@@ -1725,8 +2090,8 @@ mod tests {
                         #[test]
                         fn decompose_reconstructs(k in scalar_strategy::<Scalar>()) {
                             let ((neg1, a1), (neg2, a2)) = decompose::<$curve>(&k);
-                            prop_assert!(a1 >> 127 == 0);
-                            prop_assert!(a2 >> 127 == 0);
+                            prop_assert!(a1 >> GLV_COMPONENT_BITS == 0);
+                            prop_assert!(a2 >> GLV_COMPONENT_BITS == 0);
                             let s1 = Scalar::from_u128(a1);
                             let s1 = if neg1 { -s1 } else { s1 };
                             let s2 = Scalar::from_u128(a2);

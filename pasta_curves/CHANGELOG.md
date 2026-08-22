@@ -61,6 +61,8 @@ and this project adheres to Rust's notion of
 - Added the hidden `pallas::add_mixed_pair_unchecked` helper for downstream
   batched arithmetic that can expose instruction-level parallelism across
   two incomplete mixed additions.
+- `CurveExt::try_multiexp_vartime`, with a GLV Signed-Booth backend for
+  large Pallas and Vesta multiscalar multiplications.
 - The `aarch64-asm` backend's exponentiation chains (`invert`, `pow_vartime`,
   and the square-root chains) use a fused "square `n` times, then multiply"
   assembly routine that keeps the accumulator in registers for the whole run.
