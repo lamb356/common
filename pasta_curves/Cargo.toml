@@ -68,6 +68,11 @@ multicore = [
     "dep:maybe-rayon",
     "maybe-rayon/threads",
 ]
+# The Eisenstein-orbit MSM backend (`glv::orbit`, planned against the
+# Signed-Booth backend per input) and the prepared fixed-base zero-checks
+# (`glv::zero`, exposed through `CurveExt::try_prepare_zero_check`).
+# Without it the arbitrary-scalar MSM plans the Signed-Booth backend alone.
+orbits = ["glv"]
 repr-c = []
 serde = [
     "hex",
