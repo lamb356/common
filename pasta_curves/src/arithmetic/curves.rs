@@ -203,6 +203,27 @@ pub trait PreparedZeroCheck<C: CurveExt>: core::fmt::Debug + Send + Sync {
         scalars: &[C::ScalarExt],
         extra: &[(C::ScalarExt, C::AffineExt)],
     ) -> bool;
+
+    /// The exact multiscalar multiplication
+    /// $\sum_i \[k_i\] P_i + \sum_j \[s_j\] Q_j$ — the same evaluation the
+    /// zero-check runs, with the group element returned instead of compared
+    /// against the identity. A polynomial commitment over the prepared
+    /// bases is exactly this call with the coefficients as the fixed
+    /// scalars.
+    ///
+    /// # Security
+    ///
+    /// Variable-time in everything; callers committing to secret data must
+    /// already accept a variable-time multiexp (as halo2's prover does).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `scalars.len()` differs from [`Self::terms`].
+    fn multiexp_with_terms_vartime(
+        &self,
+        scalars: &[C::ScalarExt],
+        extra: &[(C::ScalarExt, C::AffineExt)],
+    ) -> C;
 }
 
 /// Internal construction for coordinates produced by trusted curve formulas.

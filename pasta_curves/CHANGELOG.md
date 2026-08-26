@@ -8,14 +8,34 @@ and this project adheres to Rust's notion of
 
 ## [Unreleased]
 
+- `PreparedZeroCheck` (and `glv::zero::PreparedZeroMsm`) gained
+  `multiexp_with_terms_vartime`: the exact multiscalar multiplication the
+  zero-check already evaluates, with the group element returned instead of
+  compared against the identity. A polynomial commitment over the prepared
+  bases is exactly this call, which is how halo2's prover now consumes the
+  preparation.
+- Re-calibrated the MSM planner's parallel model with a shared-bandwidth
+  floor: each backend's parallel estimate may not fall below 8% of its
+  total group-operation count, since wide pools divide per-worker work but
+  not total memory traffic. The floor shapes the orbit backend's window
+  width on any parallel pool (fixing measured width mispicks of +5-13% at
+  65,536 terms on 16-32 workers and up to +28% at 512-2,048 terms on 32
+  workers) and joins the backend-versus-backend comparison past 16
+  workers; at 16 workers and below the comparison stays unfloored, though
+  the orbit side enters it at the floor-picked width (the mid-size
+  boundary measures in opposite directions on 16-core/SMT x86 and Apple
+  M4 Max, pending per-architecture calibration). Fit and
+  validated on interleaved `msm_backend_timings` grids on x86-64 over
+  both the portable and assembly field arithmetic; summed planner cell
+  losses roughly halve on both.
 - All of this release's new MSM machinery — the Eisenstein-orbit backend
   (`glv::orbit`), the magnitude-profiled backend planner, the prepared
   zero-checks (`glv::zero`), and the `arithmetic::PreparedZeroCheck` /
   `CurveExt::try_prepare_zero_check` hooks — sits behind a new `orbits`
   feature (implying `glv`), so it can be disabled, refactored, or removed
   wholesale. Without it the arbitrary-scalar MSM plans the Signed-Booth
-  backend against the generic estimate exactly as before. halo2 enables
-  `orbits` by default.
+  backend against the generic estimate exactly as before. halo2 forwards
+  it as its own opt-in `orbits` feature.
 - Added `glv::zero`: prepared fixed-base multiscalar **zero-checks** for the
   verifier-shaped workload where almost all bases are fixed across many
   checks (an SRS) and only the identity outcome is needed.

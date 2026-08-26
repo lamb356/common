@@ -292,6 +292,33 @@ impl<C: GlvParams> PreparedZeroMsm<C> {
         scalars: &[C::ScalarExt],
         extra: &[(C::ScalarExt, C::AffineExt)],
     ) -> bool {
+        bool::from(
+            self.multiexp_with_terms_vartime(scalars, extra)
+                .is_identity(),
+        )
+    }
+
+    /// The exact multiscalar multiplication
+    /// $\sum_i \[k_i\] P_i + \sum_j \[s_j\] Q_j$ over the prepared bases
+    /// and per-call `extra` terms — the same evaluation the zero-checks run,
+    /// with the group element returned instead of compared against the
+    /// identity. This is the prover-shaped entry point: a polynomial
+    /// commitment over a fixed SRS is exactly this call with the
+    /// coefficients as the fixed scalars (and, in halo2's layout, the
+    /// blinding factor riding one of the trailing fixed bases).
+    ///
+    /// Variable-time in everything; all inputs must be public or the timing
+    /// leak accepted by the caller (halo2's prover already evaluates its
+    /// commitments through a variable-time multiexp).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `scalars.len()` differs from the prepared base count.
+    pub fn multiexp_with_terms_vartime(
+        &self,
+        scalars: &[C::ScalarExt],
+        extra: &[(C::ScalarExt, C::AffineExt)],
+    ) -> C {
         assert_eq!(
             scalars.len(),
             self.live.len(),
@@ -344,7 +371,7 @@ impl<C: GlvParams> PreparedZeroMsm<C> {
             scalars.iter().enumerate().map(decompose_checked).collect()
         };
         let Some(components) = components else {
-            return self.naive_is_zero(scalars, extra);
+            return self.naive_multiexp(scalars, extra);
         };
 
         let recoded = codebook::recode(&self.codebook, &components, num_threads);
@@ -358,12 +385,12 @@ impl<C: GlvParams> PreparedZeroMsm<C> {
             .copied()
             .collect();
         match self.evaluate(&recoded, &extras, num_threads) {
-            Some(sum) => bool::from(sum.is_identity()),
+            Some(sum) => sum,
             // Unreachable for valid curve points (the batched-affine
             // reduction's inversions cannot actually hit zero), but never
-            // trust that with the check's soundness: fall back to a naive
-            // exact evaluation.
-            None => self.naive_is_zero(scalars, extra),
+            // trust that with the result's correctness: fall back to a
+            // naive exact evaluation.
+            None => self.naive_multiexp(scalars, extra),
         }
     }
 
@@ -605,11 +632,11 @@ impl<C: GlvParams> PreparedZeroMsm<C> {
     }
 
     /// Exact fallback evaluation (never taken in practice; see the caller).
-    fn naive_is_zero(
+    fn naive_multiexp(
         &self,
         scalars: &[C::ScalarExt],
         extra: &[(C::ScalarExt, C::AffineExt)],
-    ) -> bool {
+    ) -> C {
         let mut acc = C::identity();
         for (index, scalar) in scalars.iter().enumerate() {
             if !self.live[index] || bool::from(scalar.is_zero()) {
@@ -626,7 +653,7 @@ impl<C: GlvParams> PreparedZeroMsm<C> {
         for (scalar, point) in extra {
             acc += C::from(*point) * scalar;
         }
-        bool::from(acc.is_identity())
+        acc
     }
 }
 
@@ -645,6 +672,14 @@ impl<C: GlvParams> crate::arithmetic::PreparedZeroCheck<C> for PreparedZeroMsm<C
         extra: &[(C::ScalarExt, C::AffineExt)],
     ) -> bool {
         PreparedZeroMsm::is_zero_with_terms_vartime(self, scalars, extra)
+    }
+
+    fn multiexp_with_terms_vartime(
+        &self,
+        scalars: &[C::ScalarExt],
+        extra: &[(C::ScalarExt, C::AffineExt)],
+    ) -> C {
+        PreparedZeroMsm::multiexp_with_terms_vartime(self, scalars, extra)
     }
 }
 
@@ -1133,6 +1168,24 @@ mod tests {
         assert_eq!(
             prepared.is_zero_with_terms_vartime(&scalars, &wrong),
             bool::from(expected.is_identity())
+        );
+
+        // The point-returning evaluation is the same computation with the
+        // group element handed back: it must equal the generic MSM exactly,
+        // with and without extra terms.
+        assert_eq!(
+            prepared.multiexp_with_terms_vartime(&scalars, &[]),
+            expected
+        );
+        assert!(bool::from(
+            prepared
+                .multiexp_with_terms_vartime(&scalars, &extra)
+                .is_identity()
+        ));
+        let generator = C::generator().to_affine();
+        assert_eq!(
+            prepared.multiexp_with_terms_vartime(&scalars, &[(C::ScalarExt::from(41), generator)]),
+            expected + C::generator() * C::ScalarExt::from(41)
         );
     }
 
