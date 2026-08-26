@@ -928,8 +928,11 @@ enum MultiexpPlan {
 /// parallel pool (it is what knows that wider windows move less data: it
 /// fixes the measured c5-over-c6 mispick at 65,536 terms on 16 and 32
 /// workers, +5–13% on both grids and both curves, and the c5-over-c4
-/// mispicks at 512–2,048 terms on 32 workers, up to +28%), but joins the
-/// backend-versus-backend comparison only past
+/// mispicks at 512–2,048 terms on 32 workers, up to +28%; on 16 workers
+/// the width-5/6 boundary lands near 28,672 terms, and flipping the
+/// k = 15 verifier's 32,770-term check to width 6 measured end to end on
+/// M4 Max as that verifier's ~5% orbit loss becoming parity), but joins
+/// the backend-versus-backend comparison only past
 /// [`TRAFFIC_FLOOR_COMPARISON_THREADS`] workers: at 16 workers the
 /// mid-size backend boundary is measured *opposite* on the two production
 /// hosts (orbit ahead on 16-core/SMT x86, Booth ahead on M4 Max), so
@@ -4475,6 +4478,13 @@ mod tests {
         assert_eq!(plan(65_536, 8), orbit(6));
         assert_eq!(plan(8_192, 16), orbit(5));
         assert_eq!(plan(16_384, 16), orbit(5));
+        // The bandwidth floor moves the 16-worker width-5/6 boundary to
+        // ~28,672 terms, between grid points, so the k = 15 verifier's
+        // 32,770-term final check plans width 6. Measured end to end on
+        // M4 Max (whose full pool is 16), that turned the k = 15
+        // verifier's ~5% orbit loss into parity and k = 16 into an 8%
+        // win; 16,384 and 24,576 stay at width 5.
+        assert_eq!(plan(32_768, 16), orbit(6));
 
         // Saturated pools (+30..+54% measured). At 65,536 terms the
         // bandwidth floor picks the widest window: c6 measured 11-13%
