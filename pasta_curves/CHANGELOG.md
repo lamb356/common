@@ -33,8 +33,8 @@ and this project adheres to Rust's notion of
   `CurveExt::try_prepare_zero_check` hooks — sits behind a new `orbits`
   feature (implying `glv`), so it can be disabled, refactored, or removed
   wholesale. Without it the arbitrary-scalar MSM plans the Signed-Booth
-  backend against the generic estimate exactly as before. halo2 enables
-  `orbits` by default.
+  backend against the generic estimate exactly as before. halo2 forwards
+  it as its own opt-in `orbits` feature.
 - Added `glv::zero`: prepared fixed-base multiscalar **zero-checks** for the
   verifier-shaped workload where almost all bases are fixed across many
   checks (an SRS) and only the identity outcome is needed.
