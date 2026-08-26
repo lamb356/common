@@ -557,30 +557,32 @@ const MIN_GLV_MULTIEXP_TERMS: usize = 256;
 /// Each GLV decomposition component has magnitude strictly below `2^127`.
 const GLV_COMPONENT_BITS: usize = 127;
 
-/// Estimates the dominant group work in a Signed-Booth MSM.
+/// Estimates a Signed-Booth MSM's costs as a `(work, traffic)` pair: the
+/// dominant group work, and the total point/window visits plus bucket
+/// additions — the traffic the planner's shared-bandwidth floor scales,
+/// since a wide pool cannot divide it away (see `plan_multiexp`).
 ///
-/// The serial model counts total point/window visits, bucket additions, and
-/// accumulator doublings. The parallel model estimates the corresponding
+/// The serial work model counts total point/window visits, bucket additions,
+/// and accumulator doublings. The parallel model estimates the corresponding
 /// critical-worker cost when windows have independent accumulators. Both omit
 /// GLV setup costs; [`MIN_GLV_MULTIEXP_TERMS`] handles their small-MSM
 /// amortization separately.
-fn estimated_signed_booth_work(
+fn estimated_signed_booth_costs(
     terms: usize,
     scalar_bits: usize,
     window_bits: usize,
     num_threads: usize,
-) -> Option<usize> {
+) -> Option<(usize, usize)> {
     let windows = scalar_bits.checked_div(window_bits)?.checked_add(1)?;
     let bucket_shift = u32::try_from(window_bits.checked_sub(1)?).ok()?;
     let buckets = 1usize.checked_shl(bucket_shift)?;
+    let point_visits = terms.checked_mul(windows)?;
+    let bucket_additions = buckets.checked_mul(windows)?.checked_mul(2)?;
+    let traffic = point_visits.checked_add(bucket_additions)?;
 
     if num_threads <= 1 {
-        let point_visits = terms.checked_mul(windows)?;
-        let bucket_additions = buckets.checked_mul(windows)?.checked_mul(2)?;
         let doublings = window_bits.checked_mul(windows.checked_sub(1)?)?;
-        return point_visits
-            .checked_add(bucket_additions)?
-            .checked_add(doublings);
+        return Some((traffic.checked_add(doublings)?, traffic));
     }
 
     // Parallel windows have independent accumulators. Estimate the critical
@@ -597,7 +599,23 @@ fn estimated_signed_booth_work(
             None => break,
         }
     }
-    per_window.checked_mul(waves)?.checked_add(shift_doublings)
+    Some((
+        per_window
+            .checked_mul(waves)?
+            .checked_add(shift_doublings)?,
+        traffic,
+    ))
+}
+
+/// Test convenience: the work component of [`estimated_signed_booth_costs`].
+#[cfg(test)]
+fn estimated_signed_booth_work(
+    terms: usize,
+    scalar_bits: usize,
+    window_bits: usize,
+    num_threads: usize,
+) -> Option<usize> {
+    estimated_signed_booth_costs(terms, scalar_bits, window_bits, num_threads).map(|(work, _)| work)
 }
 
 /// Floors of `e^k` for `k = 4..=22`.
@@ -662,8 +680,10 @@ fn multiexp_window_bits<C: GlvParams>(terms: usize, num_threads: usize) -> Optio
 
     let scalar_bits = scalar_repr_bits::<C>()?;
     let next_window_bits = window_bits.checked_add(1)?;
-    let current = estimated_signed_booth_work(terms, scalar_bits, window_bits, num_threads);
-    let next = estimated_signed_booth_work(terms, scalar_bits, next_window_bits, num_threads);
+    let current = estimated_signed_booth_costs(terms, scalar_bits, window_bits, num_threads)
+        .map(|(work, _)| work);
+    let next = estimated_signed_booth_costs(terms, scalar_bits, next_window_bits, num_threads)
+        .map(|(work, _)| work);
     Some(
         if matches!((current, next), (Some(current), Some(next)) if next < current) {
             next_window_bits
@@ -703,16 +723,20 @@ fn glv_multiexp_window_bits<C: GlvParams>(terms: usize, num_threads: usize) -> O
     if terms < MIN_GLV_MULTIEXP_TERMS {
         return None;
     }
-    let generic = estimated_generic_work::<C>(terms, num_threads)?;
+    let (generic, _) = estimated_generic_costs::<C>(terms, num_threads)?;
     let (glv, glv_window_bits) = booth_multiexp_estimate::<C>(terms, num_threads)?;
     (glv < generic).then_some(glv_window_bits)
 }
 
-/// The generic Signed-Booth MSM's estimated work at its default width.
-fn estimated_generic_work<C: GlvParams>(terms: usize, num_threads: usize) -> Option<usize> {
+/// The generic Signed-Booth MSM's estimated `(work, traffic)` costs at its
+/// default width (see [`estimated_signed_booth_costs`]).
+fn estimated_generic_costs<C: GlvParams>(
+    terms: usize,
+    num_threads: usize,
+) -> Option<(usize, usize)> {
     let window_bits = multiexp_window_bits::<C>(terms, num_threads)?;
     let scalar_bits = scalar_repr_bits::<C>()?;
-    estimated_signed_booth_work(terms, scalar_bits, window_bits, num_threads)
+    estimated_signed_booth_costs(terms, scalar_bits, window_bits, num_threads)
 }
 
 /// The Signed-Booth GLV backend's cheapest `(work, window width)` over the
@@ -726,8 +750,8 @@ fn booth_multiexp_estimate<C: GlvParams>(
     let glv_terms = terms.checked_mul(2)?;
     let mut best: Option<(usize, usize)> = None;
     for candidate in window_bits..=window_bits.checked_add(1)? {
-        if let Some(work) =
-            estimated_signed_booth_work(glv_terms, GLV_COMPONENT_BITS, candidate, num_threads)
+        if let Some((work, _)) =
+            estimated_signed_booth_costs(glv_terms, GLV_COMPONENT_BITS, candidate, num_threads)
         {
             if best.is_none_or(|(best_work, _)| work < best_work) {
                 best = Some((work, candidate));
@@ -742,9 +766,10 @@ fn booth_multiexp_estimate<C: GlvParams>(
 /// divide per-worker work but not total traffic, so past the saturation
 /// point the estimate may not fall below this fraction of the total. The
 /// value is fit from the 2026-08-26 interleaved `msm_backend_timings`
-/// grids (x86-64 portable and `x86_64-asm`), where 8% more than halved
-/// the planner's summed cell losses on both; by construction it binds
-/// only above ~12 workers (below that, per-worker work exceeds it).
+/// grids (x86-64, portable and assembly field arithmetic), where 8% more
+/// than halved the planner's summed cell losses on both; by construction
+/// it binds only above ~12 workers (below that, per-worker work exceeds
+/// it).
 #[cfg(feature = "orbits")]
 const PARALLEL_TRAFFIC_FLOOR_PERCENT: usize = 8;
 
@@ -752,7 +777,8 @@ const PARALLEL_TRAFFIC_FLOOR_PERCENT: usize = 8;
 /// backend-versus-backend comparison (it always shapes the orbit width
 /// choice). At 16 workers the mid-size Booth/orbit boundary measures in
 /// *opposite* directions on the two production hosts (see
-/// [`plan_multiexp`]), so the boundary is left unfloored there.
+/// [`plan_multiexp`]), so the comparison stays unfloored there — though
+/// the orbit side still enters it at its floor-picked width.
 #[cfg(feature = "orbits")]
 const TRAFFIC_FLOOR_COMPARISON_THREADS: usize = 16;
 
@@ -827,11 +853,13 @@ impl MagnitudeProfile {
     }
 }
 
-/// The Signed-Booth backend's estimated work for a profiled input at one
-/// width, in [`estimated_signed_booth_work`]'s structure and units, but
-/// visiting only the windows each decomposition half's magnitude reaches
-/// and integrating buckets only for windows some half reaches. Doublings
-/// are unchanged — the ladder Horner-shifts through empty windows too. On
+/// The Signed-Booth backend's estimated `(work, traffic)` costs for a
+/// profiled input at one width, in [`estimated_signed_booth_costs`]'s
+/// structure and units, but visiting only the windows each decomposition
+/// half's magnitude reaches and integrating buckets only for windows some
+/// half reaches. Doublings are unchanged — the ladder Horner-shifts through
+/// empty windows too — and count toward the work but not the traffic (the
+/// visits plus bucket additions the planner's bandwidth floor scales). On
 /// uniformly full-width inputs this degenerates to (just under) the
 /// count-based model.
 #[cfg(feature = "orbits")]
@@ -900,9 +928,9 @@ enum MultiexpPlan {
 /// `glv_multiexp_window_bits`) and the Eisenstein-orbit widths 4..=6,
 /// or `None` when the generic MSM is estimated to be cheaper than both.
 ///
-/// All three estimates share [`estimated_signed_booth_work`]'s units (the
+/// All three estimates share [`estimated_signed_booth_costs`]'s units (the
 /// orbit model carries its own measured calibration constants; see
-/// [`orbit::estimated_work`]), and the two GLV backends are priced from the
+/// [`orbit::estimated_costs`]), and the two GLV backends are priced from the
 /// input's [`MagnitudeProfile`], since their relative cost depends strongly
 /// on scalar magnitudes, not just the term count. Ties keep the Signed-Booth
 /// backend (candidates are compared strictly, Booth first).
@@ -936,9 +964,11 @@ enum MultiexpPlan {
 /// [`TRAFFIC_FLOOR_COMPARISON_THREADS`] workers: at 16 workers the
 /// mid-size backend boundary is measured *opposite* on the two production
 /// hosts (orbit ahead on 16-core/SMT x86, Booth ahead on M4 Max), so
-/// below that the boundary deliberately stays where the unfloored models
-/// put it. Fit on interleaved `msm_backend_timings` medians (x86-64
-/// portable and `x86_64-asm` grids, 2026-08-26); the floor is inert at
+/// below that the comparison deliberately stays between unfloored work
+/// values — with the orbit side evaluated at its floor-picked width, which
+/// can differ from the unfloored minimum where the floor changes the
+/// width. Fit on interleaved `msm_backend_timings` medians (x86-64,
+/// portable and assembly field grids, 2026-08-26); the floor is inert at
 /// eight or fewer workers, where per-worker work exceeds it by
 /// construction.
 ///
@@ -965,17 +995,8 @@ fn plan_multiexp<C: GlvParams>(
     let comparison_floored = num_threads > TRAFFIC_FLOOR_COMPARISON_THREADS;
 
     let generic = {
-        let base = estimated_generic_work::<C>(terms, num_threads)?;
+        let (base, traffic) = estimated_generic_costs::<C>(terms, num_threads)?;
         if comparison_floored {
-            let window_bits = multiexp_window_bits::<C>(terms, num_threads)?;
-            let windows = scalar_repr_bits::<C>()?
-                .checked_div(window_bits)?
-                .checked_add(1)?;
-            let bucket_shift = u32::try_from(window_bits.checked_sub(1)?).ok()?;
-            let buckets = 1usize.checked_shl(bucket_shift)?;
-            let traffic = terms
-                .checked_mul(windows)?
-                .checked_add(buckets.checked_mul(windows)?.checked_mul(2)?)?;
             base.max(traffic_floor(traffic)?)
         } else {
             base

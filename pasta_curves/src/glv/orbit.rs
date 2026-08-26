@@ -104,13 +104,13 @@ use super::{
 pub(super) const MIN_WINDOW_BITS: usize = 3;
 /// See [`MIN_WINDOW_BITS`].
 pub(super) const MAX_WINDOW_BITS: usize = 6;
-/// The narrowest width [`estimated_work`] will price for the planner.
+/// The narrowest width [`estimated_costs`] will price for the planner.
 /// Width 3 stays implemented and tested, but its 43 windows of
 /// $(4^3 + 2)/6 = 11$ buckets only ever modeled ahead on MSMs of a few
 /// hundred terms, where they measured 4–17% *behind* the Booth backend
 /// (per-window overhead dominates 200-odd visits); planning starts at 4.
 pub(super) const PLAN_MIN_WINDOW_BITS: usize = 4;
-/// The smallest MSM [`estimated_work`] will price for the planner. At 256
+/// The smallest MSM [`estimated_costs`] will price for the planner. At 256
 /// terms the backend's fixed per-window costs measured it 2–7% behind
 /// Booth at low thread counts (sub-millisecond, noise-prone cells); from
 /// 512 terms up it wins. This gates on the *term count*, not liveness —
@@ -569,13 +569,29 @@ pub(super) fn multiexp<C: GlvParams>(
     windows_sum::<C>(&params, &digits, &rotated, 0..active_windows)
 }
 
-/// Estimates the dominant group work of the orbit backend for a profiled
-/// input, in units comparable to [`super::estimated_signed_booth_work`]'s,
-/// with two calibration constants fit to the `msm_backend_timings` harness
-/// against the Booth backend on 32-core x86-64 (portable field backend) —
-/// the unique pair (over eighths/sixteenths/thirty-seconds of a visit) that
-/// reproduces every measured serial backend-and-width preference from 512
-/// to 65,536 terms and flips no parallel cell against its measured winner:
+/// Test convenience: the work component of [`estimated_costs`].
+#[cfg(test)]
+pub(super) fn estimated_work(
+    profile: &MagnitudeProfile,
+    window_bits: usize,
+    num_threads: usize,
+) -> Option<usize> {
+    estimated_costs(profile, window_bits, num_threads).map(|(work, _)| work)
+}
+
+/// Estimates the orbit backend's costs for a profiled input as a
+/// `(work, traffic)` pair: the dominant group work, in units comparable to
+/// [`super::estimated_signed_booth_costs`]'s, and the estimate's total
+/// group-operation count (visits and weighted-bucket additions), which the
+/// planner's shared-bandwidth floor scales — total traffic is what a wide
+/// pool cannot divide away (see `plan_multiexp`).
+///
+/// The work model carries two calibration constants fit to the
+/// `msm_backend_timings` harness against the Booth backend on 32-core
+/// x86-64 (portable field backend) — the unique pair (over
+/// eighths/sixteenths/thirty-seconds of a visit) that reproduces every
+/// measured serial backend-and-width preference from 512 to 65,536 terms
+/// and flips no parallel cell against its measured winner:
 ///
 /// - A point/window **visit** is priced at 27/32 of a Booth visit. Both are
 ///   one batched-affine bucket addition, but an orbit window makes a single
@@ -600,18 +616,6 @@ pub(super) fn multiexp<C: GlvParams>(
 /// (its $\lceil W/\text{workers}\rceil$ windows plus the top window's shift
 /// doublings) — work stealing achieves the former at low worker counts;
 /// the latter binds when workers exceed half the window count.
-pub(super) fn estimated_work(
-    profile: &MagnitudeProfile,
-    window_bits: usize,
-    num_threads: usize,
-) -> Option<usize> {
-    estimated_costs(profile, window_bits, num_threads).map(|(work, _)| work)
-}
-
-/// [`estimated_work`] plus the estimate's total group-operation count
-/// (visits and weighted-bucket additions), which the planner's
-/// shared-bandwidth floor scales — total traffic is what a wide pool
-/// cannot divide away (see `plan_multiexp`).
 pub(super) fn estimated_costs(
     profile: &MagnitudeProfile,
     window_bits: usize,

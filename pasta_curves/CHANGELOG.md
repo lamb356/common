@@ -21,9 +21,10 @@ and this project adheres to Rust's notion of
   width on any parallel pool (fixing measured width mispicks of +5-13% at
   65,536 terms on 16-32 workers and up to +28% at 512-2,048 terms on 32
   workers) and joins the backend-versus-backend comparison past 16
-  workers; at 16 workers and below the backend boundary is unchanged (the
-  mid-size boundary measures in opposite directions on 16-core/SMT x86
-  and Apple M4 Max, pending per-architecture calibration). Fit and
+  workers; at 16 workers and below the comparison stays unfloored, though
+  the orbit side enters it at the floor-picked width (the mid-size
+  boundary measures in opposite directions on 16-core/SMT x86 and Apple
+  M4 Max, pending per-architecture calibration). Fit and
   validated on interleaved `msm_backend_timings` grids on x86-64 over
   both the portable and assembly field arithmetic; summed planner cell
   losses roughly halve on both.
