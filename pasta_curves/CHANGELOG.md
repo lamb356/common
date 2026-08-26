@@ -8,6 +8,12 @@ and this project adheres to Rust's notion of
 
 ## [Unreleased]
 
+- `PreparedZeroCheck` (and `glv::zero::PreparedZeroMsm`) gained
+  `multiexp_with_terms_vartime`: the exact multiscalar multiplication the
+  zero-check already evaluates, with the group element returned instead of
+  compared against the identity. A polynomial commitment over the prepared
+  bases is exactly this call, which is how halo2's prover now consumes the
+  preparation.
 - Re-calibrated the MSM planner's parallel model with a shared-bandwidth
   floor: each backend's parallel estimate may not fall below 8% of its
   total group-operation count, since wide pools divide per-worker work but
