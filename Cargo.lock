@@ -1824,9 +1824,6 @@ name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
-dependencies = [
- "spin 0.9.9",
-]
 
 [[package]]
 name = "lebe"
@@ -3300,18 +3297,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20"
 
 [[package]]
-name = "uint"
-version = "0.9.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "76f64bba2c53b04fcab63c01a7d7427eadc821e3bc48c34dc9ba29c501164b52"
-dependencies = [
- "byteorder",
- "crunchy",
- "hex",
- "static_assertions",
-]
-
-[[package]]
 name = "unarray"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3742,15 +3727,10 @@ version = "1.0.0-rc.3"
 dependencies = [
  "bitvec",
  "blake2s_simd",
- "byteorder",
  "criterion 0.4.0",
- "crossbeam-channel",
  "ff",
  "group",
  "hex-literal",
- "lazy_static",
- "log",
- "num_cpus",
  "rand 0.10.2",
  "rand_core 0.10.1",
  "rand_xorshift 0.5.0",
@@ -3786,18 +3766,15 @@ name = "zakura-halo2-gadgets"
 version = "1.0.0-rc.3"
 dependencies = [
  "arrayvec",
- "bitvec",
  "criterion 0.3.6",
  "ff",
  "group",
  "inferno",
- "lazy_static",
  "plotters",
  "pprof 0.8.0",
  "proptest",
  "rand 0.10.2",
  "subtle",
- "uint",
  "zakura-halo2-poseidon",
  "zakura-halo2-proofs",
  "zakura-pasta-curves",
@@ -3835,7 +3812,6 @@ dependencies = [
  "group",
  "gumdrop",
  "image",
- "indexmap",
  "maybe-rayon",
  "plotters",
  "proptest",
@@ -3887,8 +3863,6 @@ dependencies = [
  "secp256k1",
  "secrecy",
  "subtle",
- "tracing",
- "zakura-bls12-381",
  "zakura-jubjub",
  "zakura-orchard",
  "zakura-sapling-crypto",
@@ -3918,9 +3892,9 @@ dependencies = [
  "image",
  "incrementalmerkletree",
  "inferno",
- "lazy_static",
  "memuse",
  "nonempty",
+ "once_cell",
  "plotters",
  "pprof 0.11.1",
  "proptest",
@@ -3964,8 +3938,8 @@ dependencies = [
  "ff",
  "group",
  "hex",
- "lazy_static",
  "maybe-rayon",
+ "once_cell",
  "proptest",
  "rand 0.10.2",
  "rand_xorshift 0.5.0",
@@ -4026,7 +4000,6 @@ dependencies = [
  "minreq",
  "rand 0.10.2",
  "rand_core 0.10.1",
- "tracing",
  "wagyu-zcash-parameters",
  "xdg",
  "zakura-bellman",
@@ -4043,12 +4016,10 @@ version = "1.0.0-rc.3"
 dependencies = [
  "bincode",
  "blake2b_simd",
- "byteorder",
  "criterion 0.6.0",
  "frost-rerandomized",
  "group",
  "hex",
- "lazy_static",
  "num-bigint",
  "num-traits",
  "proptest",
@@ -4071,14 +4042,13 @@ version = "1.0.0-rc.3"
 dependencies = [
  "bincode",
  "criterion 0.5.1",
- "lazy_static",
  "proptest",
  "rand 0.10.2",
  "rand_chacha 0.10.0",
  "rand_core 0.10.1",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.20",
  "zakura-reddsa",
  "zeroize",
 ]
@@ -4101,8 +4071,8 @@ dependencies = [
  "group",
  "hex",
  "incrementalmerkletree",
- "lazy_static",
  "memuse",
+ "once_cell",
  "pprof 0.15.0",
  "proptest",
  "rand 0.10.2",
@@ -4126,7 +4096,7 @@ version = "1.0.0-rc.3"
 dependencies = [
  "criterion 0.4.0",
  "group",
- "lazy_static",
+ "once_cell",
  "subtle",
  "zakura-pasta-curves",
 ]

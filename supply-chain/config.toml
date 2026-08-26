@@ -305,7 +305,7 @@ criteria = "safe-to-deploy"
 
 [[exemptions.crossbeam-channel]]
 version = "0.5.16"
-criteria = "safe-to-deploy"
+criteria = "safe-to-run"
 
 [[exemptions.crossbeam-deque]]
 version = "0.8.7"
@@ -581,7 +581,7 @@ criteria = "safe-to-deploy"
 
 [[exemptions.indexmap]]
 version = "1.9.3"
-criteria = "safe-to-deploy"
+criteria = "safe-to-run"
 
 [[exemptions.inferno]]
 version = "0.11.4"
@@ -693,7 +693,7 @@ criteria = "safe-to-run"
 
 [[exemptions.num_cpus]]
 version = "1.17.0"
-criteria = "safe-to-deploy"
+criteria = "safe-to-run"
 
 [[exemptions.object]]
 version = "0.37.3"
@@ -1105,10 +1105,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.typenum]]
 version = "1.20.1"
-criteria = "safe-to-deploy"
-
-[[exemptions.uint]]
-version = "0.9.5"
 criteria = "safe-to-deploy"
 
 [[exemptions.unicode-ident]]
