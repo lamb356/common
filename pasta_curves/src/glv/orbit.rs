@@ -605,6 +605,18 @@ pub(super) fn estimated_work(
     window_bits: usize,
     num_threads: usize,
 ) -> Option<usize> {
+    estimated_costs(profile, window_bits, num_threads).map(|(work, _)| work)
+}
+
+/// [`estimated_work`] plus the estimate's total group-operation count
+/// (visits and weighted-bucket additions), which the planner's
+/// shared-bandwidth floor scales — total traffic is what a wide pool
+/// cannot divide away (see `plan_multiexp`).
+pub(super) fn estimated_costs(
+    profile: &MagnitudeProfile,
+    window_bits: usize,
+    num_threads: usize,
+) -> Option<(usize, usize)> {
     if !(PLAN_MIN_WINDOW_BITS..=MAX_WINDOW_BITS).contains(&window_bits)
         || profile.terms < PLAN_MIN_TERMS
     {
@@ -624,7 +636,7 @@ pub(super) fn estimated_work(
     }
     if active_windows == 0 {
         // Every scalar is zero (or every base the identity).
-        return Some(0);
+        return Some((0, 0));
     }
     // The recoding can carry one window past the top magnitude.
     let active_windows = (active_windows + 1).min(window_count);
@@ -634,9 +646,10 @@ pub(super) fn estimated_work(
         .checked_mul(3)?
         .checked_mul(active_windows)?;
     let doublings = window_bits.checked_mul(active_windows - 1)?;
+    let traffic = visits.checked_add(bucket_additions)?;
 
     if num_threads <= 1 {
-        return visits.checked_add(bucket_additions)?.checked_add(doublings);
+        return Some((traffic.checked_add(doublings)?, traffic));
     }
 
     let workers = num_threads.min(active_windows);
@@ -656,7 +669,7 @@ pub(super) fn estimated_work(
         .div_ceil(active_windows)
         .checked_mul(active_windows.div_ceil(workers))?
         .checked_add(doublings)?;
-    Some(balanced.max(quantized))
+    Some((balanced.max(quantized), traffic))
 }
 
 #[cfg(test)]

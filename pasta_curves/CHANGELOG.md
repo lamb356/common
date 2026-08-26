@@ -8,6 +8,19 @@ and this project adheres to Rust's notion of
 
 ## [Unreleased]
 
+- Re-calibrated the MSM planner's parallel model with a shared-bandwidth
+  floor: each backend's parallel estimate may not fall below 8% of its
+  total group-operation count, since wide pools divide per-worker work but
+  not total memory traffic. The floor shapes the orbit backend's window
+  width on any parallel pool (fixing measured width mispicks of +5-13% at
+  65,536 terms on 16-32 workers and up to +28% at 512-2,048 terms on 32
+  workers) and joins the backend-versus-backend comparison past 16
+  workers; at 16 workers and below the backend boundary is unchanged (the
+  mid-size boundary measures in opposite directions on 16-core/SMT x86
+  and Apple M4 Max, pending per-architecture calibration). Fit and
+  validated on interleaved `msm_backend_timings` grids on x86-64 over
+  both the portable and assembly field arithmetic; summed planner cell
+  losses roughly halve on both.
 - All of this release's new MSM machinery — the Eisenstein-orbit backend
   (`glv::orbit`), the magnitude-profiled backend planner, the prepared
   zero-checks (`glv::zero`), and the `arithmetic::PreparedZeroCheck` /

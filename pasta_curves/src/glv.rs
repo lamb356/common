@@ -737,6 +737,31 @@ fn booth_multiexp_estimate<C: GlvParams>(
     best
 }
 
+/// The shared-memory-bandwidth floor on the parallel backend estimates, as
+/// a percentage of the estimate's total group-operation count: wide pools
+/// divide per-worker work but not total traffic, so past the saturation
+/// point the estimate may not fall below this fraction of the total. The
+/// value is fit from the 2026-08-26 interleaved `msm_backend_timings`
+/// grids (x86-64 portable and `x86_64-asm`), where 8% more than halved
+/// the planner's summed cell losses on both; by construction it binds
+/// only above ~12 workers (below that, per-worker work exceeds it).
+#[cfg(feature = "orbits")]
+const PARALLEL_TRAFFIC_FLOOR_PERCENT: usize = 8;
+
+/// The worker count above which the floor also enters the
+/// backend-versus-backend comparison (it always shapes the orbit width
+/// choice). At 16 workers the mid-size Booth/orbit boundary measures in
+/// *opposite* directions on the two production hosts (see
+/// [`plan_multiexp`]), so the boundary is left unfloored there.
+#[cfg(feature = "orbits")]
+const TRAFFIC_FLOOR_COMPARISON_THREADS: usize = 16;
+
+/// [`PARALLEL_TRAFFIC_FLOOR_PERCENT`] of an estimate's total.
+#[cfg(feature = "orbits")]
+fn traffic_floor(traffic: usize) -> Option<usize> {
+    Some(traffic.checked_mul(PARALLEL_TRAFFIC_FLOOR_PERCENT)? / 100)
+}
+
 /// The bit length of a decomposition half's magnitude.
 #[cfg(feature = "orbits")]
 fn bit_length(magnitude: u128) -> usize {
@@ -810,11 +835,11 @@ impl MagnitudeProfile {
 /// uniformly full-width inputs this degenerates to (just under) the
 /// count-based model.
 #[cfg(feature = "orbits")]
-fn booth_profiled_work(
+fn booth_profiled_costs(
     profile: &MagnitudeProfile,
     window_bits: usize,
     num_threads: usize,
-) -> Option<usize> {
+) -> Option<(usize, usize)> {
     let windows = GLV_COMPONENT_BITS
         .checked_div(window_bits)?
         .checked_add(1)?;
@@ -831,17 +856,18 @@ fn booth_profiled_work(
         }
     }
     let bucket_additions = buckets.checked_mul(active_windows)?.checked_mul(2)?;
+    let traffic = visits.checked_add(bucket_additions)?;
 
     if num_threads <= 1 {
         let doublings = window_bits.checked_mul(windows.checked_sub(1)?)?;
-        return visits.checked_add(bucket_additions)?.checked_add(doublings);
+        return Some((traffic.checked_add(doublings)?, traffic));
     }
 
     // As in the count-based parallel model: whole waves of the per-window
     // average, plus the critical worker's strided shift doublings.
     let workers = num_threads.min(windows);
     let waves = windows.div_ceil(workers);
-    let per_window = visits.checked_add(bucket_additions)?.div_ceil(windows);
+    let per_window = traffic.div_ceil(windows);
     let mut shift_doublings = 0usize;
     let mut window = windows.checked_sub(1)?;
     for _ in 0..waves {
@@ -851,7 +877,12 @@ fn booth_profiled_work(
             None => break,
         }
     }
-    per_window.checked_mul(waves)?.checked_add(shift_doublings)
+    Some((
+        per_window
+            .checked_mul(waves)?
+            .checked_add(shift_doublings)?,
+        traffic,
+    ))
 }
 
 /// A backend and window width selected by [`plan_multiexp`].
@@ -887,21 +918,38 @@ enum MultiexpPlan {
 /// byte-sized, and zero scalars), where its half-columns reach far fewer
 /// windows than the joint radix-$2^c$ recoding.
 ///
-/// **Calibration staleness (2026-08-24, updated 2026-08-25):** the
+/// **Shared-bandwidth floor (2026-08-26 re-fit):** the per-worker parallel
+/// estimates alone let wide pools divide away total memory traffic, which
+/// hardware does not: past the point where every window has a worker, the
+/// backends become bandwidth-bound and total traffic — not per-worker
+/// work — sets the wall time. Each parallel estimate is therefore floored
+/// at [`PARALLEL_TRAFFIC_FLOOR_PERCENT`] of its total group-operation
+/// count. The floor shapes the orbit backend's *width* choice on any
+/// parallel pool (it is what knows that wider windows move less data: it
+/// fixes the measured c5-over-c6 mispick at 65,536 terms on 16 and 32
+/// workers, +5–13% on both grids and both curves, and the c5-over-c4
+/// mispicks at 512–2,048 terms on 32 workers, up to +28%), but joins the
+/// backend-versus-backend comparison only past
+/// [`TRAFFIC_FLOOR_COMPARISON_THREADS`] workers: at 16 workers the
+/// mid-size backend boundary is measured *opposite* on the two production
+/// hosts (orbit ahead on 16-core/SMT x86, Booth ahead on M4 Max), so
+/// below that the boundary deliberately stays where the unfloored models
+/// put it. Fit on interleaved `msm_backend_timings` medians (x86-64
+/// portable and `x86_64-asm` grids, 2026-08-26); the floor is inert at
+/// eight or fewer workers, where per-worker work exceeds it by
+/// construction.
+///
+/// **Calibration staleness (2026-08-24, updated 2026-08-26):** the visit
 /// constants above were fit before the Signed-Booth base-coordinate
-/// caching and before both backends' parallel schedules gained window
-/// pairing, and a single `msm_backend_timings` sweep on the fit host
-/// afterwards shows the *parallel* boundary has drifted: the model
-/// forgoes measured orbit wins at 8–16 workers on mid sizes (up to +40%
-/// at 16 workers, 2,048 terms) and over-selects orbit by ≤5%
-/// (noise-scale, single-run cells) at a few 4-worker cells; serial and
-/// 32-worker selections still match every measured winner. The original
-/// serial sweeps also predate the discovery that the harness's
-/// sequential per-backend blocks inflated the first curve's serial Booth
-/// column ~15–20% (fixed by interleaving; see `msm_backend_timings`) —
-/// the corrected serial picture is the parity above. Re-fitting the two
-/// parallel models over interleaved medians of the new grid is the
-/// standing follow-up.
+/// caching and window pairing; the 2026-08-26 grids show the *serial* and
+/// low-worker selections still match every reproducible measured winner
+/// (the corrected serial picture is the parity above; the harness's
+/// first-curve serial Booth inflation persists — trust the second curve's
+/// serial Booth column). Known remaining gaps, deliberately left at the
+/// current boundary pending per-architecture calibration: the 16-worker
+/// mid-size conflict above, witness-shaped under-selection at 8–16
+/// workers on x86 (+6–10% forgone, opposite sign on M4), and small
+/// (≤5%) over-selections at 4 workers.
 #[cfg(feature = "orbits")]
 fn plan_multiexp<C: GlvParams>(
     profile: &MagnitudeProfile,
@@ -911,15 +959,38 @@ fn plan_multiexp<C: GlvParams>(
     if terms < MIN_GLV_MULTIEXP_TERMS {
         return None;
     }
-    let generic = estimated_generic_work::<C>(terms, num_threads)?;
+    let comparison_floored = num_threads > TRAFFIC_FLOOR_COMPARISON_THREADS;
+
+    let generic = {
+        let base = estimated_generic_work::<C>(terms, num_threads)?;
+        if comparison_floored {
+            let window_bits = multiexp_window_bits::<C>(terms, num_threads)?;
+            let windows = scalar_repr_bits::<C>()?
+                .checked_div(window_bits)?
+                .checked_add(1)?;
+            let bucket_shift = u32::try_from(window_bits.checked_sub(1)?).ok()?;
+            let buckets = 1usize.checked_shl(bucket_shift)?;
+            let traffic = terms
+                .checked_mul(windows)?
+                .checked_add(buckets.checked_mul(windows)?.checked_mul(2)?)?;
+            base.max(traffic_floor(traffic)?)
+        } else {
+            base
+        }
+    };
 
     let mut best: Option<(usize, MultiexpPlan)> = None;
     let window_bits = multiexp_window_bits::<C>(terms, num_threads)?;
     for candidate in window_bits..=window_bits.checked_add(1)? {
-        if let Some(work) = booth_profiled_work(profile, candidate, num_threads) {
-            if best.is_none_or(|(best_work, _)| work < best_work) {
+        if let Some((work, traffic)) = booth_profiled_costs(profile, candidate, num_threads) {
+            let metric = if comparison_floored {
+                work.max(traffic_floor(traffic)?)
+            } else {
+                work
+            };
+            if best.is_none_or(|(best_work, _)| metric < best_work) {
                 best = Some((
-                    work,
+                    metric,
                     MultiexpPlan::Booth {
                         window_bits: candidate,
                     },
@@ -927,18 +998,40 @@ fn plan_multiexp<C: GlvParams>(
             }
         }
     }
+
+    // The orbit width is picked by the floored estimate on any parallel
+    // pool — total traffic is what distinguishes the widths once workers
+    // stop being the constraint — while the value entered into the
+    // backend comparison honors `comparison_floored` like the others.
+    let mut orbit_pick: Option<(usize, usize, usize)> = None;
     for candidate in orbit::PLAN_MIN_WINDOW_BITS..=orbit::MAX_WINDOW_BITS {
-        if let Some(work) = orbit::estimated_work(profile, candidate, num_threads) {
-            if best.is_none_or(|(best_work, _)| work < best_work) {
-                best = Some((
-                    work,
-                    MultiexpPlan::Orbit {
-                        window_bits: candidate,
-                    },
-                ));
+        if let Some((work, traffic)) = orbit::estimated_costs(profile, candidate, num_threads) {
+            let width_metric = if num_threads > 1 {
+                work.max(traffic_floor(traffic)?)
+            } else {
+                work
+            };
+            if orbit_pick.is_none_or(|(best_metric, _, _)| width_metric < best_metric) {
+                orbit_pick = Some((width_metric, work, candidate));
             }
         }
     }
+    if let Some((width_metric, work, candidate)) = orbit_pick {
+        let metric = if comparison_floored {
+            width_metric
+        } else {
+            work
+        };
+        if best.is_none_or(|(best_work, _)| metric < best_work) {
+            best = Some((
+                metric,
+                MultiexpPlan::Orbit {
+                    window_bits: candidate,
+                },
+            ));
+        }
+    }
+
     let (work, plan) = best?;
     (work < generic).then_some(plan)
 }
@@ -4383,10 +4476,14 @@ mod tests {
         assert_eq!(plan(8_192, 16), orbit(5));
         assert_eq!(plan(16_384, 16), orbit(5));
 
-        // Saturated pools (+30..+54% measured).
+        // Saturated pools (+30..+54% measured). At 65,536 terms the
+        // bandwidth floor picks the widest window: c6 measured 11-13%
+        // ahead of the per-worker model's c5 on both grids and both
+        // curves (2026-08-26), total traffic being the binding resource
+        // once every window has a worker.
         assert_eq!(plan(2_048, 32), orbit(5));
         assert_eq!(plan(8_192, 32), orbit(5));
-        assert_eq!(plan(65_536, 32), orbit(5));
+        assert_eq!(plan(65_536, 32), orbit(6));
 
         // Both curves plan these full-width cells identically, and a Booth
         // selection always uses a width the measured-cell contract of
