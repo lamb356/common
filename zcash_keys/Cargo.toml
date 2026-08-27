@@ -13,7 +13,7 @@
 edition = "2024"
 rust-version = "1.88"
 name = "zakura-keys"
-version = "1.0.0-rc.3"
+version = "1.0.0-rc.4"
 authors = [
     "Dev Ojha <ValarDragon@users.noreply.github.com>",
     "Sean Bowe <ewillbefull@gmail.com>",
@@ -129,7 +129,7 @@ default-features = false
 
 [dependencies.orchard]
 path = "../orchard"
-version = "1.0.0-rc.3"
+version = "1.0.0-rc.4"
 optional = true
 default-features = false
 package = "zakura-orchard"
@@ -149,7 +149,7 @@ default-features = false
 
 [dependencies.sapling]
 path = "../sapling-crypto"
-version = "1.0.0-rc.3"
+version = "1.0.0-rc.4"
 optional = true
 default-features = false
 package = "zakura-sapling-crypto"
@@ -206,12 +206,12 @@ default-features = false
 
 [dev-dependencies.jubjub]
 path = "../jubjub"
-version = "1.0.0-rc.3"
+version = "1.0.0-rc.4"
 package = "zakura-jubjub"
 
 [dev-dependencies.orchard]
 path = "../orchard"
-version = "1.0.0-rc.3"
+version = "1.0.0-rc.4"
 features = ["circuit"]
 default-features = false
 package = "zakura-orchard"

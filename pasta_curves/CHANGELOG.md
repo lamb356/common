@@ -8,6 +8,7 @@ and this project adheres to Rust's notion of
 
 ## [Unreleased]
 
+- Prepared the `1.0.0-rc.4` release.
 - `PreparedZeroCheck` (and `glv::zero::PreparedZeroMsm`) gained
   `multiexp_with_terms_vartime`: the exact multiscalar multiplication the
   zero-check already evaluates, with the group element returned instead of

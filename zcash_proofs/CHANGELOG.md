@@ -8,6 +8,7 @@ and this project adheres to Rust's notion of
 
 ## [Unreleased]
 
+- Prepared the `1.0.0-rc.4` release.
 - Removed `local-prover` from the default feature set; the default features
   are now just `multicore`. Consumers that locate the Sapling parameters on
   disk (`~/.zcash-params` discovery via the `directories` machinery) must now

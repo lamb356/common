@@ -8,6 +8,7 @@ and this project adheres to Rust's notion of
 
 ## [Unreleased]
 
+- Prepared the `1.0.0-rc.4` release.
 - Replaced `lazy_static` (`spin_no_std`) with `once_cell` plus an
   exactly-once initialization wrapper for the affine generator table,
   removing the `spin` dependency.

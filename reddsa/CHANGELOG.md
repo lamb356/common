@@ -8,6 +8,7 @@ and this project adheres to Rust's notion of
 
 ## [Unreleased]
 
+- Prepared the `1.0.0-rc.4` release.
 - Removed the `byteorder` dependency; non-adjacent-form limb loading now
   uses `u64::from_le_bytes` with identical results.
 

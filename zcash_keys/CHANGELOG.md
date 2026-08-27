@@ -8,6 +8,7 @@ and this project adheres to Rust's notion of
 
 ## [Unreleased]
 
+- Prepared the `1.0.0-rc.4` release.
 - Removed the unused `bls12_381` and `tracing` dependencies (`bls12_381`
   was previously pulled into builds that did not enable the `sapling`
   feature), and moved `group` (doc examples only) to dev-dependencies.
