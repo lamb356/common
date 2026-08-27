@@ -6,7 +6,7 @@ replacement by renaming the dependency:
 
 ```toml
 [dependencies]
-jubjub = { package = "zakura-jubjub", version = "1.0.0-rc.3" }
+jubjub = { package = "zakura-jubjub", version = "1.0.0-rc.4" }
 ```
 
 # jubjub
