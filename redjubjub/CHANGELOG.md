@@ -8,6 +8,7 @@ and this project adheres to Rust's notion of
 
 ## [Unreleased]
 
+- Prepared the `1.0.0-rc.4` release.
 - Updated `thiserror` to 2.0. The `Error` type and its variants are
   unchanged.
 
