@@ -89,6 +89,13 @@ jobs:
               echo "$member/CHANGELOG.md has no Unreleased section" >&2
               exit 1
             fi
+            # The provenance seed (upstream crate, fork-point commit, import
+            # commit) is permanent; see docs/changelogs.md.
+            if ! git show "$head_sha:$member/CHANGELOG.md" |
+              grep -Eq '^## About this fork$'; then
+              echo "$member/CHANGELOG.md has no 'About this fork' section" >&2
+              exit 1
+            fi
           done
 
           if [[ "$base_sha" == "0000000000000000000000000000000000000000" ]] ||
