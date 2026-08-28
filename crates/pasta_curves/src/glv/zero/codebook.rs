@@ -820,12 +820,12 @@ impl Codebook {
     /// The index of the trivial variant $\eta = 1$, whose prepared layer is
     /// the bases themselves (used by the tail MSM and identity checks).
     pub(crate) fn unit_variant(&self) -> usize {
-        let index = self
+        
+        self
             .variants
             .iter()
             .position(|&eta| eta == (Eis { a: 1, b: 0 }))
-            .expect("the trivial coset lifts to 1");
-        index
+            .expect("the trivial coset lifts to 1")
     }
 
     /// Bytes of the residue table plus lift vectors (planning/reporting).

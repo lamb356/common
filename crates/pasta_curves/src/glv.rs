@@ -840,11 +840,9 @@ fn booth_multiexp_estimate<C: GlvParams>(
     for candidate in window_bits..=window_bits.checked_add(1)? {
         if let Some((work, _)) =
             estimated_signed_booth_costs(glv_terms, GLV_COMPONENT_BITS, candidate, num_threads)
-        {
-            if best.is_none_or(|(best_work, _)| work < best_work) {
+            && best.is_none_or(|(best_work, _)| work < best_work) {
                 best = Some((work, candidate));
             }
-        }
     }
     best
 }

@@ -591,14 +591,13 @@ impl<C: GlvParams> PreparedZeroMsm<C> {
         }
         let scalars: Vec<C::ScalarExt> = extras.iter().map(|(s, _)| *s).collect();
         let points: Vec<C::AffineExt> = extras.iter().map(|(_, q)| *q).collect();
-        if extras.len() >= EXTRAS_PLANNED_MIN {
-            if let Some(sum) = super::try_multiexp::<C>(&scalars, &points) {
+        if extras.len() >= EXTRAS_PLANNED_MIN
+            && let Some(sum) = super::try_multiexp::<C>(&scalars, &points) {
                 return Some(sum);
             }
             // The planner declining (or an arithmetic guard failing) is
             // unreachable for full-width verifier extras at these counts,
             // but the paths below stay exact regardless.
-        }
         // Small counts: Signed-Booth at a width from the bucket/visit
         // balance (per-window bucket work dominates until the visit count
         // catches up), run serially — this whole job is sub-millisecond

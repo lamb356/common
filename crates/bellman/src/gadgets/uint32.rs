@@ -130,11 +130,10 @@ impl UInt32 {
 
             match *b {
                 Boolean::Constant(b) => {
-                    if b {
-                        if let Some(v) = value.as_mut() {
+                    if b
+                        && let Some(v) = value.as_mut() {
                             *v |= 1;
                         }
-                    }
                 }
                 Boolean::Is(ref b) => match b.get_value() {
                     Some(true) => {
@@ -557,9 +556,8 @@ mod test {
 
             let r = {
                 let mut cs = MultiEq::new(&mut cs);
-                let r =
-                    UInt32::addmany(cs.namespace(|| "addition"), &[a_bit, b_bit, c_bit]).unwrap();
-                r
+                
+                UInt32::addmany(cs.namespace(|| "addition"), &[a_bit, b_bit, c_bit]).unwrap()
             };
 
             assert!(r.value == Some(expected));

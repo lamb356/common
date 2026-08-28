@@ -760,15 +760,14 @@ where
         // If the chosen pivot is equal to the predecessor, then it's the smallest element in the
         // slice. Partition the slice into elements equal to and elements greater than the pivot.
         // This case is usually hit when the slice contains many duplicate elements.
-        if let Some(p) = pred {
-            if !is_less(p, &v[pivot]) {
+        if let Some(p) = pred
+            && !is_less(p, &v[pivot]) {
                 let mid = partition_equal(v, pivot, is_less);
 
                 // Continue sorting elements greater than the pivot.
                 v = &mut { v }[mid..];
                 continue;
             }
-        }
 
         // Partition the slice.
         let (mid, was_p) = partition(v, pivot, is_less);
