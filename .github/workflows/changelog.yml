@@ -1,24 +1,19 @@
-name: Changelog policy
+name: Changelog fragments
+
+# Fragment-based changelog policy, mirroring zakura-core/zakura: every Rust or
+# Cargo.toml PR owns one docs/changelog/unreleased/<PR>.md fragment, consumed
+# into the per-crate changelogs at release assembly. See
+# docs/changelog/guidelines.md.
 
 on:
   pull_request:
     branches: [main, "feat/**", "release/**", "agent/**"]
-    paths:
-      - "**/*.rs"
-      - "**/Cargo.toml"
-      - "**/CHANGELOG.md"
-      - .github/scripts/workspace_packages.py
-      - .github/workflows/changelog.yml
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   push:
     branches:
       - main
-    paths:
-      - "**/*.rs"
-      - "**/Cargo.toml"
-      - "**/CHANGELOG.md"
-      - .github/scripts/workspace_packages.py
-      - .github/workflows/changelog.yml
   merge_group:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -29,102 +24,44 @@ concurrency:
 
 jobs:
   changelog:
-    name: changelog policy
+    name: changelog fragment
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Require per-crate changelog updates
-        shell: bash
+      - name: Validate this pull request's fragment
+        if: github.event_name == 'pull_request'
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          MERGE_BASE_SHA: ${{ github.event.merge_group.base_sha }}
-          MERGE_HEAD_SHA: ${{ github.event.merge_group.head_sha }}
-          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          PUSH_BASE_SHA: ${{ github.event.before }}
-          PUSH_HEAD_SHA: ${{ github.sha }}
+          ALLOW_MISSING: >-
+            ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RELEASE_PR: >-
+            ${{ contains(github.event.pull_request.labels.*.name, 'A-release') }}
         run: |
-          workspace_packages=$(python3 .github/scripts/workspace_packages.py)
-          members=()
-          while IFS= read -r member; do
-            members+=("$member")
-          done < <(jq -r '.[].directory' <<< "$workspace_packages")
-
-          case "$EVENT_NAME" in
-            pull_request)
-              base_sha=$PR_BASE_SHA
-              head_sha=$PR_HEAD_SHA
-              ;;
-            push)
-              base_sha=$PUSH_BASE_SHA
-              head_sha=$PUSH_HEAD_SHA
-              ;;
-            merge_group)
-              base_sha=$MERGE_BASE_SHA
-              head_sha=$MERGE_HEAD_SHA
-              ;;
-            *)
-              echo "Unsupported event: $EVENT_NAME" >&2
-              exit 1
-              ;;
-          esac
-
-          unreleased_body() {
-            git show "$1:$2" 2>/dev/null | awk '
-              /^## \[?Unreleased\]?$/ { inside = 1; next }
-              inside && /^## / { exit }
-              inside { print }
-            '
-          }
-
-          for member in "${members[@]}"; do
-            git cat-file -e "$head_sha:$member/Cargo.toml" 2>/dev/null || continue
-            if ! git show "$head_sha:$member/CHANGELOG.md" |
-              grep -Eq '^## \[?Unreleased\]?$'; then
-              echo "$member/CHANGELOG.md has no Unreleased section" >&2
-              exit 1
-            fi
-          done
-
-          if [[ "$base_sha" == "0000000000000000000000000000000000000000" ]] ||
-            ! git cat-file -e "${base_sha}^{commit}" 2>/dev/null; then
-            # Treat a new ref, or an unreachable pre-force-push base, as a diff
-            # from the empty tree so policy checks fail conservatively.
-            base_sha=$(git hash-object -t tree /dev/null)
-          elif [[ "$EVENT_NAME" == pull_request ]]; then
-            base_sha=$(git merge-base "$base_sha" "$head_sha")
+          args=(
+            check-pr
+            --base "$BASE_SHA"
+            --head "$HEAD_SHA"
+            --pr "$PR_NUMBER"
+          )
+          if [ "$ALLOW_MISSING" = "true" ]; then
+            args+=(--allow-missing)
           fi
-          changed=$(git diff --name-only --no-renames "$base_sha" "$head_sha")
-
-          missing=()
-          for member in "${members[@]}"; do
-            requires_changelog=false
-            while IFS= read -r path; do
-              case "$path" in
-                "$member/Cargo.toml"|"$member/"*.rs)
-                  requires_changelog=true
-                  ;;
-              esac
-            done <<< "$changed"
-
-            if [[ "$requires_changelog" == true ]]; then
-              base_unreleased=$(unreleased_body \
-                "$base_sha" "$member/CHANGELOG.md" || true)
-              head_unreleased=$(unreleased_body \
-                "$head_sha" "$member/CHANGELOG.md")
-              if [[ "$base_unreleased" == "$head_unreleased" ]]; then
-                missing+=("$member/CHANGELOG.md")
-              fi
-            fi
-          done
-
-          if (( ${#missing[@]} > 0 )); then
-            echo "Rust or Cargo changes require changes inside matching Unreleased sections:" >&2
-            printf '  %s\n' "${missing[@]}" >&2
-            exit 1
+          if [ "$RELEASE_PR" = "true" ]; then
+            args+=(--release-pr)
           fi
+          ./scripts/changelog.py "${args[@]}"
+
+      - name: Validate pending fragments
+        if: github.event_name != 'pull_request'
+        run: ./scripts/changelog.py check
+
+      - name: Run changelog unit tests
+        # These tests use only Python's stdlib and standard shell/git tools.
+        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py'

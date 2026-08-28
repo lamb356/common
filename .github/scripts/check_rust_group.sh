@@ -56,6 +56,6 @@ if [[ "$run_tests" == true ]]; then
 fi
 
 run_check "MSRV check" \
-  cargo +1.88.0 check --locked "${package_args[@]}"
+  cargo +1.91.0 check --locked "${package_args[@]}"
 
 exit "$status"

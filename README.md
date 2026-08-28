@@ -4,32 +4,32 @@ This repository contains various Rust libraries used in [Zakura](https://github.
 
 ## Transactions and keys
 
-- [`zakura-primitives`](zcash_primitives) (a [fork](https://github.com/zcash/librustzcash/tree/main/zcash_primitives) of `zcash_primitives`)
-- [`zakura-keys`](zcash_keys) (a [fork](https://github.com/zcash/librustzcash/tree/main/zcash_keys) of `zcash_keys`)
+- [`zakura-primitives`](crates/zcash_primitives) (a [fork](https://github.com/zcash/librustzcash/tree/main/zcash_primitives) of `zcash_primitives`)
+- [`zakura-keys`](crates/zcash_keys) (a [fork](https://github.com/zcash/librustzcash/tree/main/zcash_keys) of `zcash_keys`)
 
 ## Shielded protocols
 
-- [`zakura-orchard`](orchard) (a [fork](https://github.com/zcash/orchard) of `orchard`)
-- [`zakura-sapling-crypto`](sapling-crypto) (a [fork](https://github.com/zcash/sapling-crypto) of `sapling-crypto`)
-- [`zakura-proofs`](zcash_proofs) (a [fork](https://github.com/zcash/librustzcash/tree/main/zcash_proofs) of `zcash_proofs`)
+- [`zakura-orchard`](crates/orchard) (a [fork](https://github.com/zcash/orchard) of `orchard`)
+- [`zakura-sapling-crypto`](crates/sapling-crypto) (a [fork](https://github.com/zcash/sapling-crypto) of `sapling-crypto`)
+- [`zakura-proofs`](crates/zcash_proofs) (a [fork](https://github.com/zcash/librustzcash/tree/main/zcash_proofs) of `zcash_proofs`)
 
 ## The halo2 proving system
 
-- [`zakura-halo2-proofs`](halo2_proofs) (a [fork](https://github.com/zcash/halo2/tree/main/halo2_proofs) of `halo2_proofs`)
-- [`zakura-halo2-gadgets`](halo2_gadgets) (a [fork](https://github.com/zcash/halo2/tree/main/halo2_gadgets) of `halo2_gadgets`)
-- [`zakura-halo2-poseidon`](halo2_poseidon) (a [fork](https://github.com/zcash/halo2/tree/main/halo2_poseidon) of `halo2_poseidon`)
-- [`zakura-halo2-legacy-pdqsort`](halo2_legacy_pdqsort) (a [fork](https://github.com/zcash/halo2_legacy_pdqsort) of `halo2_legacy_pdqsort`)
+- [`zakura-halo2-proofs`](crates/halo2_proofs) (a [fork](https://github.com/zcash/halo2/tree/main/halo2_proofs) of `halo2_proofs`)
+- [`zakura-halo2-gadgets`](crates/halo2_gadgets) (a [fork](https://github.com/zcash/halo2/tree/main/halo2_gadgets) of `halo2_gadgets`)
+- [`zakura-halo2-poseidon`](crates/halo2_poseidon) (a [fork](https://github.com/zcash/halo2/tree/main/halo2_poseidon) of `halo2_poseidon`)
+- [`zakura-halo2-legacy-pdqsort`](crates/halo2_legacy_pdqsort) (a [fork](https://github.com/zcash/halo2_legacy_pdqsort) of `halo2_legacy_pdqsort`)
 
 ## Curves, hashes, and signatures
 
-- [`zakura-pairing`](pairing) (a [fork](https://github.com/zkcrypto/pairing) of `pairing`)
-- [`zakura-bls12-381`](bls12_381) (a [fork](https://github.com/zkcrypto/bls12_381) of `bls12_381`)
-- [`zakura-jubjub`](jubjub) (a [fork](https://github.com/zkcrypto/jubjub) of `jubjub`)
-- [`zakura-bellman`](bellman) (a [fork](https://github.com/zkcrypto/bellman) of `bellman`)
-- [`zakura-pasta-curves`](pasta_curves) (a [fork](https://github.com/zcash/pasta_curves) of `pasta_curves`)
-- [`zakura-sinsemilla`](sinsemilla) (a [fork](https://github.com/zcash/sinsemilla) of `sinsemilla`)
-- [`zakura-reddsa`](reddsa) (a [fork](https://github.com/ZcashFoundation/reddsa) of `reddsa`)
-- [`zakura-redjubjub`](redjubjub) (a [fork](https://github.com/ZcashFoundation/redjubjub) of `redjubjub`)
+- [`zakura-pairing`](crates/pairing) (a [fork](https://github.com/zkcrypto/pairing) of `pairing`)
+- [`zakura-bls12-381`](crates/bls12_381) (a [fork](https://github.com/zkcrypto/bls12_381) of `bls12_381`)
+- [`zakura-jubjub`](crates/jubjub) (a [fork](https://github.com/zkcrypto/jubjub) of `jubjub`)
+- [`zakura-bellman`](crates/bellman) (a [fork](https://github.com/zkcrypto/bellman) of `bellman`)
+- [`zakura-pasta-curves`](crates/pasta_curves) (a [fork](https://github.com/zcash/pasta_curves) of `pasta_curves`)
+- [`zakura-sinsemilla`](crates/sinsemilla) (a [fork](https://github.com/zcash/sinsemilla) of `sinsemilla`)
+- [`zakura-reddsa`](crates/reddsa) (a [fork](https://github.com/ZcashFoundation/reddsa) of `reddsa`)
+- [`zakura-redjubjub`](crates/redjubjub) (a [fork](https://github.com/ZcashFoundation/redjubjub) of `redjubjub`)
 
 `redjubjub` is a thin wrapper over `reddsa`, so it is forked along with it.
 

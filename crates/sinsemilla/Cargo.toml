@@ -1,0 +1,40 @@
+[package]
+name = "zakura-sinsemilla"
+description = "A collision-resistant circuit-efficient hash function"
+keywords = ["cryptography", "sinsemilla", "hash", "zcash"]
+categories = ["cryptography"]
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lib]
+name = "sinsemilla"
+
+[dependencies]
+group = "0.14"
+once_cell = { version = "1", features = ["race", "alloc"], default-features = false }
+pasta_curves = { workspace = true, features = ["alloc"] }
+subtle = { version = "2.3", default-features = false }
+
+[dev-dependencies]
+criterion = "0.4"
+
+[features]
+test-dependencies = []
+
+[[bench]]
+name = "primitives"
+harness = false
+
+[[bench]]
+name = "weighted"
+harness = false
+required-features = ["test-dependencies"]

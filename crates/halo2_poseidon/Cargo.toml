@@ -1,0 +1,28 @@
+[package]
+name = "zakura-halo2-poseidon"
+description = "The Poseidon algebraic hash function for Halo 2"
+keywords = ["cryptography", "poseidon", "hash", "halo2", "zcash"]
+categories = ["cryptography"]
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lib]
+name = "halo2_poseidon"
+
+[dependencies]
+bitvec = { version = "1", default-features = false }
+ff = { version = "0.14", default-features = false }
+group = "0.14"
+pasta_curves = { workspace = true, features = ["default"] }
+
+[features]
+test-dependencies = []

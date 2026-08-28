@@ -1,0 +1,43 @@
+[package]
+name = "zakura-redjubjub"
+description = "A standalone implementation of the RedJubjub signature scheme"
+keywords = ["cryptography", "signatures", "redjubjub", "jubjub", "zcash"]
+categories = ["cryptography"]
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lib]
+name = "redjubjub"
+
+[dependencies]
+rand_core = { version = "0.10", default-features = false }
+reddsa = { workspace = true, features = ["alloc"] }
+serde = { version = "1", features = ["derive"], optional = true, default-features = false }
+thiserror = { version = "2.0", optional = true }
+zeroize = { version = "1", features = ["zeroize_derive"], default-features = false }
+
+[dev-dependencies]
+bincode = "1"
+criterion = "0.5"
+proptest = "1.0"
+rand = "0.10"
+rand_chacha = "0.10"
+serde_json = "1.0"
+
+[features]
+default = ["serde", "std"]
+nightly = []
+std = ["dep:thiserror", "reddsa/std"]
+
+[[bench]]
+name = "bench"
+harness = false

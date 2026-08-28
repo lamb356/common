@@ -1,0 +1,92 @@
+[package]
+name = "zakura-keys"
+description = "Zcash key and address management"
+keywords = ["cryptography", "keys", "addresses", "zcash"]
+categories = ["cryptography::cryptocurrencies"]
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lib]
+name = "zcash_keys"
+
+[dependencies]
+bech32 = { version = "0.11", features = ["alloc"], default-features = false }
+bip0039 = { version = "0.12", optional = true }
+bip32 = { version = "=0.6.0-pre.1", features = ["alloc"], optional = true, default-features = false }
+blake2b_simd = { version = "1", default-features = false }
+bs58 = { version = "0.5", features = ["alloc", "check"], default-features = false }
+byteorder = { version = "1", optional = true }
+corez = { version = "0.1.1", features = ["alloc"], default-features = false }
+document-features = { version = "0.2", optional = true }
+memuse = { version = "0.2.2", default-features = false }
+nonempty = { version = "0.11", default-features = false }
+orchard = { workspace = true, optional = true }
+proptest = { version = ">=1,<1.7", optional = true }
+rand_core = { version = "0.6", default-features = false }
+regex = { version = "1.11", optional = true, default-features = false }
+sapling = { workspace = true, optional = true }
+secp256k1 = { version = "0.29", features = ["alloc"], optional = true, default-features = false }
+secrecy = "0.8"
+subtle = { version = "2.2.3", default-features = false }
+transparent = { version = "0.10.0", default-features = false, package = "zcash_transparent" }
+zcash_address = { version = "0.13.0", default-features = false }
+zcash_encoding = { version = "0.4", default-features = false }
+zcash_protocol = { version = "0.10.2", default-features = false }
+zeroize = { version = "1.7", optional = true, default-features = false }
+zip32 = { version = "0.2", default-features = false }
+
+[dev-dependencies]
+assert_matches = "1.5"
+group = "0.14"
+hex = { version = "0.4", features = ["alloc"], default-features = false }
+jubjub = { workspace = true, features = ["default"] }
+orchard = { workspace = true, features = ["circuit"] }
+proptest = ">=1,<1.7"
+rand = { version = "0.8", default-features = false }
+rand_chacha = "0.3"
+rand_core = { version = "0.6", default-features = false }
+secp256k1 = { version = "0.29", features = ["alloc", "rand"], default-features = false }
+transparent = { version = "0.10.0", features = ["test-dependencies"], default-features = false, package = "zcash_transparent" }
+zcash_address = { version = "0.13.0", features = ["test-dependencies"], default-features = false }
+zcash_script = { version = "0.4.3", default-features = false }
+
+[features]
+default = ["std"]
+orchard = ["dep:orchard"]
+sapling = ["dep:sapling"]
+std = [
+    "dep:document-features",
+    "orchard?/std",
+    "sapling?/std",
+    "transparent/std",
+    "zcash_address/std",
+]
+test-dependencies = [
+    "dep:proptest",
+    "orchard?/test-dependencies",
+    "sapling?/test-dependencies",
+    "transparent/test-dependencies",
+]
+transparent-inputs = ["dep:bip32", "transparent/transparent-inputs"]
+transparent-key-encoding = ["dep:bip32", "dep:secp256k1", "dep:zeroize"]
+unstable = ["dep:byteorder"]
+unstable-frost = ["orchard"]
+zcashd-compat = ["dep:bip0039", "dep:regex"]
+
+[lints.rust.unexpected_cfgs]
+level = "warn"
+priority = 0
+check-cfg = [
+    "cfg(tokio_unstable)",
+    'cfg(zcash_unstable, values("nu7"))',
+    "cfg(live_network_tests)",
+]

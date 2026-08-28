@@ -1,17 +1,18 @@
 # Zakura's forked cryptography dependencies.
 #
 # Each member is a fork of a crates.io release, vendored as a plain workspace
-# member (no submodules). The members reference each other with `path`
-# dependencies, and Zakura consumes them as `git` dependencies on this
-# repository — no `[patch]` indirection, so every edge into these crates is an
-# explicit declaration and the crates.io originals never enter the graph.
+# member (no submodules). The members reference each other through the
+# [workspace.dependencies] table below (path + version), and Zakura consumes
+# them as `git` dependencies on this repository — no `[patch]` indirection, so
+# every edge into these crates is an explicit declaration and the crates.io
+# originals never enter the graph.
 #
 # Each member is named after its zakura-branded crates.io reservation (e.g.
 # halo2_proofs → zakura-halo2-proofs, zcash_primitives → zakura-primitives;
 # see the zakura-core/reserved repository for the full mapping). Directory
 # names and library target names keep the upstream names, so `use` paths stay
 # unchanged, and intra-workspace edges keep their upstream dependency keys via
-# `package = "zakura-*"` renames.
+# the `package = "zakura-*"` renames declared once in [workspace.dependencies].
 #
 # Membership rule: the Orchard/halo2/Pallas proving stack, plus every crate in
 # Zakura's dependency graph that (transitively) depends on it. The closure must
@@ -32,21 +33,60 @@
 [workspace]
 resolver = "2"
 members = [
-    "bellman",
-    "bls12_381",
-    "halo2_gadgets",
-    "halo2_legacy_pdqsort",
-    "halo2_poseidon",
-    "halo2_proofs",
-    "jubjub",
-    "orchard",
-    "pairing",
-    "pasta_curves",
-    "reddsa",
-    "redjubjub",
-    "sapling-crypto",
-    "sinsemilla",
-    "zcash_keys",
-    "zcash_primitives",
-    "zcash_proofs",
+    "crates/bellman",
+    "crates/bls12_381",
+    "crates/halo2_gadgets",
+    "crates/halo2_legacy_pdqsort",
+    "crates/halo2_poseidon",
+    "crates/halo2_proofs",
+    "crates/jubjub",
+    "crates/orchard",
+    "crates/pairing",
+    "crates/pasta_curves",
+    "crates/reddsa",
+    "crates/redjubjub",
+    "crates/sapling-crypto",
+    "crates/sinsemilla",
+    "crates/zcash_keys",
+    "crates/zcash_primitives",
+    "crates/zcash_proofs",
 ]
+
+[workspace.package]
+version = "1.0.0-rc.5"
+authors = [
+    "Dev Ojha <ValarDragon@users.noreply.github.com>",
+    "Sean Bowe <ewillbefull@gmail.com>",
+]
+edition = "2024"
+rust-version = "1.91"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/zakura-core/libraries"
+# One shared README for every published crate; cargo package copies it into
+# each crate as README.md.
+readme = "crates/README.md"
+
+# Intra-workspace edges. Every entry pins default-features = false so that a
+# member edge fully states what it enables; edges that want a dependency's
+# default features list "default" explicitly. Keys mirror the upstream
+# dependency names members use in code and feature syntax, so several keys
+# alias the same package (halo2_poseidon/poseidon, sapling, zcash_primitives).
+[workspace.dependencies]
+bellman = { package = "zakura-bellman", version = "1.0.0-rc.5", path = "crates/bellman", default-features = false }
+bls12_381 = { package = "zakura-bls12-381", version = "1.0.0-rc.5", path = "crates/bls12_381", default-features = false }
+halo2_gadgets = { package = "zakura-halo2-gadgets", version = "1.0.0-rc.5", path = "crates/halo2_gadgets", default-features = false }
+halo2_legacy_pdqsort = { package = "zakura-halo2-legacy-pdqsort", version = "1.0.0-rc.5", path = "crates/halo2_legacy_pdqsort", default-features = false }
+halo2_poseidon = { package = "zakura-halo2-poseidon", version = "1.0.0-rc.5", path = "crates/halo2_poseidon", default-features = false }
+halo2_proofs = { package = "zakura-halo2-proofs", version = "1.0.0-rc.5", path = "crates/halo2_proofs", default-features = false }
+jubjub = { package = "zakura-jubjub", version = "1.0.0-rc.5", path = "crates/jubjub", default-features = false }
+orchard = { package = "zakura-orchard", version = "1.0.0-rc.5", path = "crates/orchard", default-features = false }
+pairing = { package = "zakura-pairing", version = "1.0.0-rc.5", path = "crates/pairing", default-features = false }
+pasta_curves = { package = "zakura-pasta-curves", version = "1.0.0-rc.5", path = "crates/pasta_curves", default-features = false }
+poseidon = { package = "zakura-halo2-poseidon", version = "1.0.0-rc.5", path = "crates/halo2_poseidon", default-features = false }
+reddsa = { package = "zakura-reddsa", version = "1.0.0-rc.5", path = "crates/reddsa", default-features = false }
+redjubjub = { package = "zakura-redjubjub", version = "1.0.0-rc.5", path = "crates/redjubjub", default-features = false }
+sapling = { package = "zakura-sapling-crypto", version = "1.0.0-rc.5", path = "crates/sapling-crypto", default-features = false }
+sinsemilla = { package = "zakura-sinsemilla", version = "1.0.0-rc.5", path = "crates/sinsemilla", default-features = false }
+zcash_keys = { package = "zakura-keys", version = "1.0.0-rc.5", path = "crates/zcash_keys", default-features = false }
+zcash_primitives = { package = "zakura-primitives", version = "1.0.0-rc.5", path = "crates/zcash_primitives", default-features = false }
+zcash_proofs = { package = "zakura-proofs", version = "1.0.0-rc.5", path = "crates/zcash_proofs", default-features = false }

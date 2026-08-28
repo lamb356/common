@@ -1,0 +1,22 @@
+[package]
+name = "zakura-pairing"
+description = "Pairing-friendly elliptic curve library"
+keywords = ["cryptography", "pairing", "elliptic-curve", "zcash"]
+categories = ["cryptography"]
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs", "--html-in-header", "katex-header.html"]
+
+[lib]
+name = "pairing"
+
+[dependencies]
+group = { version = "0.14", default-features = false }

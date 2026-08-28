@@ -399,9 +399,9 @@ dependencies = [
 
 [[package]]
 name = "chacha20"
-version = "0.10.1"
+version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d524456ba66e72eb8b115ff89e01e497f8e6d11d78b70b1aa13c0fbd97540a81"
+checksum = "65c35e4b699c7e15ccbe7ee35c005e4fc0a278d22238a2857e6ce2dadeda1b06"
 dependencies = [
  "cfg-if",
  "cpufeatures 0.3.0",
@@ -2476,7 +2476,7 @@ version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c7f5fa3a058cd35567ef9bfa5e75732bee0f9e4c55fa90477bef2dfcdbc4be80"
 dependencies = [
- "chacha20 0.10.1",
+ "chacha20 0.10.2",
  "getrandom 0.4.3",
  "rand_core 0.10.1",
 ]
@@ -3723,7 +3723,7 @@ dependencies = [
 
 [[package]]
 name = "zakura-bellman"
-version = "1.0.0-rc.4"
+version = "1.0.0-rc.5"
 dependencies = [
  "bitvec",
  "blake2s_simd",
@@ -3743,7 +3743,7 @@ dependencies = [
 
 [[package]]
 name = "zakura-bls12-381"
-version = "1.0.0-rc.4"
+version = "1.0.0-rc.5"
 dependencies = [
  "criterion 0.3.6",
  "csv",
@@ -3763,7 +3763,7 @@ dependencies = [
 
 [[package]]
 name = "zakura-halo2-gadgets"
-version = "1.0.0-rc.4"
+version = "1.0.0-rc.5"
 dependencies = [
  "arrayvec",
  "criterion 0.3.6",
@@ -3783,14 +3783,14 @@ dependencies = [
 
 [[package]]
 name = "zakura-halo2-legacy-pdqsort"
-version = "1.0.0-rc.4"
+version = "1.0.0-rc.5"
 dependencies = [
  "rand 0.10.2",
 ]
 
 [[package]]
 name = "zakura-halo2-poseidon"
-version = "1.0.0-rc.4"
+version = "1.0.0-rc.5"
 dependencies = [
  "bitvec",
  "ff",
@@ -3800,7 +3800,7 @@ dependencies = [
 
 [[package]]
 name = "zakura-halo2-proofs"
-version = "1.0.0-rc.4"
+version = "1.0.0-rc.5"
 dependencies = [
  "assert_matches",
  "backtrace",
@@ -3825,7 +3825,7 @@ dependencies = [
 
 [[package]]
 name = "zakura-jubjub"
-version = "1.0.0-rc.4"
+version = "1.0.0-rc.5"
 dependencies = [
  "bitvec",
  "criterion 0.3.6",
@@ -3840,7 +3840,7 @@ dependencies = [
 
 [[package]]
 name = "zakura-keys"
-version = "1.0.0-rc.4"
+version = "1.0.0-rc.5"
 dependencies = [
  "assert_matches",
  "bech32",
@@ -3877,7 +3877,7 @@ dependencies = [
 
 [[package]]
 name = "zakura-orchard"
-version = "1.0.0-rc.4"
+version = "1.0.0-rc.5"
 dependencies = [
  "aes",
  "bitvec",
@@ -3921,14 +3921,14 @@ dependencies = [
 
 [[package]]
 name = "zakura-pairing"
-version = "1.0.0-rc.4"
+version = "1.0.0-rc.5"
 dependencies = [
  "group",
 ]
 
 [[package]]
 name = "zakura-pasta-curves"
-version = "1.0.0-rc.4"
+version = "1.0.0-rc.5"
 dependencies = [
  "bincode",
  "blake2b_simd",
@@ -3951,7 +3951,7 @@ dependencies = [
 
 [[package]]
 name = "zakura-primitives"
-version = "1.0.0-rc.4"
+version = "1.0.0-rc.5"
 dependencies = [
  "assert_matches",
  "blake2b_simd",
@@ -3989,7 +3989,7 @@ dependencies = [
 
 [[package]]
 name = "zakura-proofs"
-version = "1.0.0-rc.4"
+version = "1.0.0-rc.5"
 dependencies = [
  "blake2b_simd",
  "byteorder",
@@ -4012,7 +4012,7 @@ dependencies = [
 
 [[package]]
 name = "zakura-reddsa"
-version = "1.0.0-rc.4"
+version = "1.0.0-rc.5"
 dependencies = [
  "bincode",
  "blake2b_simd",
@@ -4038,7 +4038,7 @@ dependencies = [
 
 [[package]]
 name = "zakura-redjubjub"
-version = "1.0.0-rc.4"
+version = "1.0.0-rc.5"
 dependencies = [
  "bincode",
  "criterion 0.5.1",
@@ -4055,7 +4055,7 @@ dependencies = [
 
 [[package]]
 name = "zakura-sapling-crypto"
-version = "1.0.0-rc.4"
+version = "1.0.0-rc.5"
 dependencies = [
  "aes",
  "bitvec",
@@ -4092,7 +4092,7 @@ dependencies = [
 
 [[package]]
 name = "zakura-sinsemilla"
-version = "1.0.0-rc.4"
+version = "1.0.0-rc.5"
 dependencies = [
  "criterion 0.4.0",
  "group",
