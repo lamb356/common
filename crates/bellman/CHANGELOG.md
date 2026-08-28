@@ -23,3 +23,23 @@ than continuing the upstream `0.14.0` numbering.
   stack to `ff`/`group` 0.14.
 
 ## [Unreleased]
+
+## [1.0.0] - 2026-08-28
+
+### Changed
+
+- Renamed the package from `bellman` to `zakura-bellman`; the library target
+  keeps its upstream name, so existing `use` paths compile unchanged.
+- Updated `ff` and `group` from 0.13 to 0.14 and `rand_core` from 0.6 to 0.10;
+  RNG parameters in the parameter-generation, proving, and batch-verification
+  APIs are now bound on `rand_core::Rng` instead of `RngCore`, and the
+  `multiexp` signatures name the affine type as `<G as Curve>::Affine` in place
+  of `<G as PrimeCurve>::Affine`, following the associated type's move from
+  `PrimeCurve` to `Curve` in `group` 0.14.
+- Replaced the upstream `pairing` dependency with the Zakura fork
+  (`zakura-pairing` 1.0.0), whose types appear in this crate's API.
+- Stopped emitting `log` records under the `multicore` feature; the
+  deadlock-guard message in `multicore::Waiter::wait` now prints to standard
+  error before the panic instead of being logged.
+- Raised the minimum supported Rust version to 1.88 and migrated the crate to
+  the 2024 edition.

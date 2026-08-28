@@ -21,3 +21,17 @@ than continuing the upstream `0.8.0` numbering.
 - Imported into this repository in commit `a57d014096a67071a2c6522a160c7e0dfbeff0f4`.
 
 ## [Unreleased]
+
+## [1.0.0] - 2026-08-28
+
+### Changed
+
+- Renamed the package from `redjubjub` to `zakura-redjubjub`; the library target
+  keeps its upstream name, so existing `use` paths compile unchanged.
+- Replaced the upstream `reddsa` dependency with the Zakura fork
+  (`zakura-reddsa` 1.0.0), whose types appear in this crate's API.
+- Updated `rand_core` from 0.6 to 0.10; the RNG parameters of `SigningKey::new`,
+  `SigningKey::sign`, and `batch::Verifier::verify` are now bounded by `Rng +
+  CryptoRng` instead of `RngCore + CryptoRng`.
+- Raised the minimum supported Rust version to 1.88 and migrated the crate to
+  the 2024 edition.

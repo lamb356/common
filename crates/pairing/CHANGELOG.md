@@ -23,3 +23,16 @@ than continuing the upstream `0.23.0` numbering.
   stack to `ff`/`group` 0.14.
 
 ## [Unreleased]
+
+## [1.0.0] - 2026-08-28
+
+### Changed
+
+- Renamed the package from `pairing` to `zakura-pairing`; the library target
+  keeps its upstream name, so existing `use` paths compile unchanged.
+- Updated `group` from 0.13 to 0.14 (moving the re-exported `ff` traits from
+  0.13 to 0.14 and `rand_core` from 0.6 to 0.10); the `pub use group` re-export
+  and the trait bounds on `Engine`, `PairingCurveAffine`, `MultiMillerLoop`, and
+  `MillerLoopResult` now require implementations from that stack.
+- Raised the minimum supported Rust version to 1.88 and migrated the crate to
+  the 2024 edition.

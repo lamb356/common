@@ -21,3 +21,23 @@ than continuing the upstream `0.5.2` numbering.
 - Imported into this repository in commit `a57d014096a67071a2c6522a160c7e0dfbeff0f4`.
 
 ## [Unreleased]
+
+## [1.0.0] - 2026-08-28
+
+### Changed
+
+- Renamed the package from `reddsa` to `zakura-reddsa`; the library target keeps
+  its upstream name, so existing `use` paths compile unchanged.
+- Updated `group` from 0.13 to 0.14 and `rand_core` from 0.6 to 0.10;
+  `SigningKey::new`, `SigningKey::sign`, and `batch::Verifier::verify` now bound
+  their RNG arguments on `rand_core` 0.10's `Rng + CryptoRng` traits.
+- Replaced the upstream `jubjub` dependency with the Zakura fork
+  (`zakura-jubjub` 1.0.0), whose types appear in this crate's API.
+- Replaced the upstream `pasta_curves` dependency with the Zakura fork
+  (`zakura-pasta-curves` 1.0.0), whose types appear in this crate's API.
+- Kept the FROST modules (`frost::redjubjub` and `frost::redpallas`) on
+  `rand_core` 0.6: their APIs still accept `rand_core` 0.6 RNGs, and the
+  re-exported `rand_core` now includes `OsRng` because the `frost` feature
+  enables its `getrandom` feature.
+- Raised the minimum supported Rust version to 1.88 and migrated the crate to
+  the 2024 edition.

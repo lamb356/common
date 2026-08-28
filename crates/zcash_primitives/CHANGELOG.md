@@ -21,3 +21,22 @@ than continuing the upstream `0.30.0` numbering.
 - Imported into this repository in commit `16d18d2a43d0aecdfcf9e9d02469c16ebf20e50b`.
 
 ## [Unreleased]
+
+## [1.0.0] - 2026-08-28
+
+### Changed
+
+- Renamed the package from `zcash_primitives` to `zakura-primitives`; the
+  library target keeps its upstream name, so existing `use` paths compile
+  unchanged.
+- Updated `ff` from 0.13 to 0.14 and `rand_core` from 0.6 to 0.10; RNG type
+  parameters on the transaction builder's `build`, `build_for_pczt`, and
+  `mock_build` methods now take the `Rng` trait bound in place of `RngCore`.
+- Replaced the upstream `jubjub` dependency with the Zakura fork
+  (`zakura-jubjub` 1.0.0), whose types appear in this crate's API.
+- Replaced the upstream `orchard` dependency with the Zakura fork
+  (`zakura-orchard` 1.0.0), whose types appear in this crate's API.
+- Replaced the upstream `redjubjub` dependency with the Zakura fork
+  (`zakura-redjubjub` 1.0.0).
+- Replaced the upstream `sapling-crypto` dependency with the Zakura fork
+  (`zakura-sapling-crypto` 1.0.0), whose types appear in this crate's API.

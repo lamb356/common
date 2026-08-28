@@ -21,3 +21,28 @@ than continuing the upstream `0.30.0` numbering.
 - Imported into this repository in commit `a57d014096a67071a2c6522a160c7e0dfbeff0f4`.
 
 ## [Unreleased]
+
+## [1.0.0] - 2026-08-28
+
+### Changed
+
+- Renamed the package from `zcash_proofs` to `zakura-proofs`; the library target
+  keeps its upstream name, so existing `use` paths compile unchanged.
+- Replaced the upstream `bellman` dependency with the Zakura fork
+  (`zakura-bellman` 1.0.0), whose types appear in this crate's API.
+- Replaced the upstream `bls12_381` dependency with the Zakura fork
+  (`zakura-bls12-381` 1.0.0), whose types appear in this crate's API.
+- Replaced the upstream `jubjub` dependency with the Zakura fork
+  (`zakura-jubjub` 1.0.0), whose types appear in this crate's API.
+- Replaced the upstream `sapling-crypto` dependency with the Zakura fork
+  (`zakura-sapling-crypto` 1.0.0), whose types appear in this crate's API.
+- Replaced the upstream `redjubjub` dependency with the Zakura fork
+  (`zakura-redjubjub` 1.0.0).
+- Replaced the upstream `zcash_primitives` dependency with the Zakura fork
+  (`zakura-primitives` 1.0.0).
+- Updated `group` from 0.13 to 0.14 and `rand_core` from 0.6 to 0.10; the
+  `SpendProver` and `OutputProver` implementations on `LocalTxProver` now take
+  RNGs bound by `rand_core::Rng` instead of `rand_core::RngCore`.
+- Changed the default features from `local-prover` and `multicore` to
+  `multicore` alone; enable `local-prover` (or `bundled-prover`) explicitly to
+  keep the `prover` module and `LocalTxProver` available.

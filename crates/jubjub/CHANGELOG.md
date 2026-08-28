@@ -23,3 +23,22 @@ than continuing the upstream `0.10.0` numbering.
   stack to `ff`/`group` 0.14.
 
 ## [Unreleased]
+
+## [1.0.0] - 2026-08-28
+
+### Changed
+
+- Renamed the package from `jubjub` to `zakura-jubjub`; the library target keeps
+  its upstream name, so existing `use` paths compile unchanged.
+- Replaced the upstream `bls12_381` dependency with the Zakura fork
+  (`zakura-bls12-381` 1.0.0), whose types appear in this crate's API.
+- Updated `ff` and `group` from 0.13 to 0.14 and `rand_core` from 0.6 to 0.10;
+  random sampling now goes through the fallible `try_random` methods over
+  `rand_core::TryRng` (with the infallible `random` retained as a provided
+  method), `AffinePoint`'s constructors and conversions now come from the new
+  `group::CurveAffine` trait rather than `CofactorCurveAffine` (which it still
+  satisfies through that crate's blanket implementation), and the `Curve`
+  implementation's affine associated type is now named `Affine` instead of
+  `AffineRepr`.
+- Raised the minimum supported Rust version to 1.88 and migrated the crate to
+  the 2024 edition.

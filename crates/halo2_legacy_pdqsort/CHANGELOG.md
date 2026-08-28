@@ -21,3 +21,13 @@ than continuing the upstream `0.1.0` numbering.
 - Imported into this repository in commit `16d18d2a43d0aecdfcf9e9d02469c16ebf20e50b`.
 
 ## [Unreleased]
+
+## [1.0.0] - 2026-08-28
+
+### Changed
+
+- Renamed the package from `halo2_legacy_pdqsort` to
+  `zakura-halo2-legacy-pdqsort`; the library target keeps its upstream name, so
+  existing `use` paths compile unchanged.
+- Raised the minimum supported Rust version to 1.88 and migrated the crate to
+  the 2024 edition.
