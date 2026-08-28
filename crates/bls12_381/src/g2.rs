@@ -1258,10 +1258,10 @@ fn test_is_on_curve() {
         ]),
     };
 
-    let gen = G2Affine::generator();
+    let r#gen = G2Affine::generator();
     let mut test = G2Projective {
-        x: gen.x * z,
-        y: gen.y * z,
+        x: r#gen.x * z,
+        y: r#gen.y * z,
         z,
     };
 

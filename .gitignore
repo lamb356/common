@@ -6,4 +6,4 @@
 # dev-graph tests and plotters render HTML/PNG artifacts into crate directories.
 **/*.html
 !katex-header.html
-action-circuit-layout.png
+*-layout.png

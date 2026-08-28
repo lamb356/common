@@ -262,7 +262,7 @@ mod tests {
     }
 
     macro_rules! deferred_field_tests {
-        ($F:ty, $mod:ident, $adversarial_a:expr, $adversarial_b:expr) => {
+        ($F:ty, $mod:ident, $adversarial_a:expr_2021, $adversarial_b:expr_2021) => {
             mod $mod {
                 use super::*;
 

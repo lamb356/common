@@ -7,7 +7,7 @@ use core::ops::MulAssign;
 use crate::{fp::Fp, fp2::Fp2};
 
 macro_rules! square {
-    ($var:expr, $n:expr) => {
+    ($var:expr_2021, $n:expr_2021) => {
         for _ in 0..$n {
             $var = $var.square();
         }

@@ -128,7 +128,7 @@ struct Trans2x2 {
 /// out of production builds. Keep every check ported from upstream on this
 /// macro so the user's `cargo test --release` exercises them.
 macro_rules! verify {
-    ($cond:expr $(, $($arg:tt)+)?) => {
+    ($cond:expr_2021 $(, $($arg:tt)+)?) => {
         if cfg!(any(test, debug_assertions)) {
             assert!($cond $(, $($arg)+)?);
         }
@@ -1174,7 +1174,7 @@ mod tests {
     }
 
     macro_rules! modinv_field_tests {
-        ($F:path, $mod:ident, $P:ty, $fermat_exp:expr, $vectors:expr) => {
+        ($F:path, $mod:ident, $P:ty, $fermat_exp:expr_2021, $vectors:expr_2021) => {
             mod $mod {
                 use super::*;
 

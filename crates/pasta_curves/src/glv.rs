@@ -4896,7 +4896,7 @@ mod tests {
             C::ScalarExt::from_u128(1u128 << GLV_COMPONENT_BITS),
             scalars::<C::ScalarExt>(1).next().unwrap(),
         ];
-        let mut check = |size: usize, ks: &[C::ScalarExt]| {
+        let check = |size: usize, ks: &[C::ScalarExt]| {
             let points: Vec<C> = (0..size)
                 .map(|i| {
                     if size > 2 && i == size / 2 {

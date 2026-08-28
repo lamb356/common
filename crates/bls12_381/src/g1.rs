@@ -1120,10 +1120,10 @@ fn test_is_on_curve() {
         0x12b1_08ac_3364_3c3e,
     ]);
 
-    let gen = G1Affine::generator();
+    let r#gen = G1Affine::generator();
     let mut test = G1Projective {
-        x: gen.x * z,
-        y: gen.y * z,
+        x: r#gen.x * z,
+        y: r#gen.y * z,
         z,
     };
 

@@ -720,10 +720,10 @@ mod test {
 
             for b in r.bits.iter() {
                 match b {
-                    Boolean::Is(ref b) => {
+                    Boolean::Is(b) => {
                         assert!(b.get_value().unwrap() == (expected & 1 == 1));
                     }
-                    Boolean::Not(ref b) => {
+                    Boolean::Not(b) => {
                         assert!(b.get_value().unwrap() != (expected & 1 == 1));
                     }
                     Boolean::Constant(b) => {
@@ -764,10 +764,10 @@ mod test {
 
             for b in r.bits.iter() {
                 match b {
-                    Boolean::Is(ref b) => {
+                    Boolean::Is(b) => {
                         assert!(b.get_value().unwrap() == (expected & 1 == 1));
                     }
-                    Boolean::Not(ref b) => {
+                    Boolean::Not(b) => {
                         assert!(b.get_value().unwrap() != (expected & 1 == 1));
                     }
                     Boolean::Constant(b) => {

@@ -62,7 +62,7 @@ pub(super) const fn square_wide(value: &[u64; 4]) -> [u64; 8] {
 /// inlining decisions for the multiplication that expands it.
 #[cfg(not(target_arch = "x86_64"))]
 macro_rules! montgomery_rounds {
-    ($t:expr, $modulus:expr, $inv:expr) => {{
+    ($t:expr_2021, $modulus:expr_2021, $inv:expr_2021) => {{
         let [r0, r1, r2, r3, r4, r5, r6, r7] = *$t;
         let modulus: &[u64; 4] = $modulus;
         let inv: u64 = $inv;

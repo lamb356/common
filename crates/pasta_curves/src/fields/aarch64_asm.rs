@@ -66,7 +66,7 @@ use core::arch::asm;
 
 type Limbs = [u64; 4];
 
-extern "C" {
+unsafe extern "C" {
     fn pasta_curves_sqr_n_mont_pasta(
         out: *mut Limbs,
         value: *const Limbs,

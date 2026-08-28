@@ -111,7 +111,7 @@ macro_rules! impl_prepare_zero_check {
 
 macro_rules! new_curve_impl {
     (($($privacy:tt)*), $name:ident, $name_affine:ident, $iso:ident, $base:ident, $scalar:ident,
-     $curve_id:literal, $a_raw:expr, $b_raw:expr, $curve_type:ident, $glv_backend:ident) => {
+     $curve_id:literal, $a_raw:expr_2021, $b_raw:expr_2021, $curve_type:ident, $glv_backend:ident) => {
         /// Represents a point in the projective coordinate space.
         #[derive(Copy, Clone, Debug)]
         #[cfg_attr(feature = "repr-c", repr(C))]
