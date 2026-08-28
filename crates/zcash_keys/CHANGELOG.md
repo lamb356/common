@@ -22,8 +22,6 @@ than continuing the upstream `0.16.1` numbering.
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-08-28
-
 ### Changed
 
 - Renamed the package from `zcash_keys` to `zakura-keys`; the library target

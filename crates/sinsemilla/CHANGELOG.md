@@ -22,8 +22,6 @@ than continuing the upstream `0.1.0` numbering.
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-08-28
-
 ### Added
 
 - Added the `weighted` module: `weighted::UncheckedFixedLengthHashDomain<N>`

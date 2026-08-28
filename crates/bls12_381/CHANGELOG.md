@@ -24,8 +24,6 @@ than continuing the upstream `0.8.0` numbering.
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-08-28
-
 ### Added
 
 - Added a `std` cargo feature that enables the `alloc` feature.

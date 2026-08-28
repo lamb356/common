@@ -24,8 +24,6 @@ than continuing the upstream `0.10.0` numbering.
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-08-28
-
 ### Changed
 
 - Renamed the package from `jubjub` to `zakura-jubjub`; the library target keeps

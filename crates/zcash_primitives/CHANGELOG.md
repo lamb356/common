@@ -22,8 +22,6 @@ than continuing the upstream `0.30.0` numbering.
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-08-28
-
 ### Changed
 
 - Renamed the package from `zcash_primitives` to `zakura-primitives`; the

@@ -22,8 +22,6 @@ than continuing the upstream `0.1.0` numbering.
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-08-28
-
 ### Changed
 
 - Renamed the package from `halo2_legacy_pdqsort` to

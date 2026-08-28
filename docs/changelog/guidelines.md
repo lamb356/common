@@ -40,13 +40,13 @@ release history (the upstream repository remains the record for that).
 `1.0.0` is the fork point and each crate's first release, so there are no
 earlier fork releases to describe deltas against:
 
-- Until `1.0.0` ships, the fragment requirement is inactive and the changelogs
-  stay at their provenance seeds. The `release-1.0.0` branch curates each
-  crate's `## [1.0.0]` section directly, as a reconstruction of the public
-  differences between the upstream fork point and the released fork (see
-  "Initial 1.0.0 entries" below).
+- Until `1.0.0` ships, the fragment requirement is inactive. The initial
+  entries — a reconstruction of the public differences between the upstream
+  fork point and the fork (see "Initial 1.0.0 entries" below) — are curated
+  directly in each crate's `## [Unreleased]` body; the stable assembly turns
+  them into the dated `## [1.0.0]` section at release.
 - The `1.0.0-rc*` release candidates are pre-releases of `1.0.0` and never get
-  their own entries.
+  their own entries or sections.
 
 After `1.0.0`, normal fragment-based maintenance (everything below) applies.
 
@@ -107,11 +107,11 @@ creates one stable section per crate.
 the assembled changelogs were not committed; release PRs must contain no
 pending fragment files.
 
-## Initial 1.0.0 entries (pending)
+## Initial 1.0.0 entries
 
-Before `1.0.0` is tagged, a reconstruction pass writes each crate's
-`## [1.0.0]` section describing the public differences between the upstream
-fork point and the released fork:
+The entries held in each crate's `## [Unreleased]` body until `1.0.0` is
+assembled describe the public differences between the upstream fork point and
+the released fork, reconstructed as follows:
 
 1. For each crate, diff the current source against the upstream artifact
    recorded in its seed
