@@ -13,7 +13,7 @@
 edition = "2024"
 rust-version = "1.88"
 name = "zakura-proofs"
-version = "1.0.0-rc.4"
+version = "1.0.0"
 authors = [
     "Dev Ojha <ValarDragon@users.noreply.github.com>",
     "Sean Bowe <ewillbefull@gmail.com>",
@@ -69,7 +69,7 @@ bench = false
 
 [dependencies.bellman]
 path = "../bellman"
-version = "1.0.0-rc.4"
+version = "1.0.0"
 features = ["groth16"]
 default-features = false
 package = "zakura-bellman"
@@ -80,7 +80,7 @@ default-features = false
 
 [dependencies.bls12_381]
 path = "../bls12_381"
-version = "1.0.0-rc.4"
+version = "1.0.0"
 package = "zakura-bls12-381"
 
 [dependencies.document-features]
@@ -95,7 +95,7 @@ optional = true
 
 [dependencies.jubjub]
 path = "../jubjub"
-version = "1.0.0-rc.4"
+version = "1.0.0"
 package = "zakura-jubjub"
 
 [dependencies.known-folders]
@@ -118,13 +118,13 @@ default-features = false
 
 [dependencies.redjubjub]
 path = "../redjubjub"
-version = "1.0.0-rc.4"
+version = "1.0.0"
 default-features = false
 package = "zakura-redjubjub"
 
 [dependencies.sapling]
 path = "../sapling-crypto"
-version = "1.0.0-rc.4"
+version = "1.0.0"
 default-features = false
 package = "zakura-sapling-crypto"
 
@@ -138,7 +138,7 @@ optional = true
 
 [dependencies.zcash_primitives]
 path = "../zcash_primitives"
-version = "1.0.0-rc.4"
+version = "1.0.0"
 features = ["circuits"]
 default-features = false
 package = "zakura-primitives"
