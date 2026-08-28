@@ -3,21 +3,21 @@
 All notable changes to this crate will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to Rust's notion of
-[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+and this crate adheres to Rust's notion of
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries describe
+the crate's public API and observable behavior from a consumer's perspective;
+internal implementation details are not tracked here.
+
+## About this fork
+
+`zakura-reddsa` is Zakura's fork of the upstream `reddsa` crate. This changelog
+begins at the fork point: upstream history up to the fork is documented in the
+upstream repository, and the fork's version lineage restarts at `1.0.0` rather
+than continuing the upstream `0.5.2` numbering.
+
+- Forked from: `reddsa 0.5.2`, published from
+  [ZcashFoundation/reddsa](https://github.com/ZcashFoundation/reddsa) at commit
+  [`3792daa9`](https://github.com/ZcashFoundation/reddsa/commit/3792daa95e588c1af6bd4805105bfb6ea7e9ad49).
+- Imported into this repository in commit `a57d014096a67071a2c6522a160c7e0dfbeff0f4`.
 
 ## [Unreleased]
-
-- Prepared the `1.0.0-rc.4` release.
-- Removed the `byteorder` dependency; non-adjacent-form limb loading now
-  uses `u64::from_le_bytes` with identical results.
-
-- Prepared the `1.0.0-rc.3` release.
-- Prepared the `1.0.0-rc.2` release.
-- Updated to `group 0.14` and the Zakura Pasta and Jubjub forks, while retaining
-  the `rand_core 0.6` boundary required by FROST.
-- Forked from upstream `reddsa` and renamed to `zakura-reddsa`; this changelog starts
-  fresh for the Zakura fork's initial release.
-- Restarted the version lineage at 1.0.0, leaving behind the inherited upstream
-  version (0.5.2); the initial Zakura release will be preceded by `1.0.0-rc` release
-  candidates.

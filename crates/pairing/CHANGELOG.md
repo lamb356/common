@@ -1,74 +1,25 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to this crate will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to Rust's notion of
-[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+and this crate adheres to Rust's notion of
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries describe
+the crate's public API and observable behavior from a consumer's perspective;
+internal implementation details are not tracked here.
+
+## About this fork
+
+`zakura-pairing` is Zakura's fork of the upstream `pairing` crate. This changelog
+begins at the fork point: upstream history up to the fork is documented in the
+upstream repository, and the fork's version lineage restarts at `1.0.0` rather
+than continuing the upstream `0.23.0` numbering.
+
+- Forked from: `pairing 0.23.0`, published from
+  [zkcrypto/pairing](https://github.com/zkcrypto/pairing) at commit
+  [`11eff5b3`](https://github.com/zkcrypto/pairing/commit/11eff5b3680a08b09c61cbe75eaa803a1e85d80b).
+- Imported into this repository in commit `295ad3fb0f7a8dd5c9ac781dd9b5a05a5eac8473`.
+- The import also ported the crate from the upstream `ff`/`group` 0.13
+  stack to `ff`/`group` 0.14.
 
 ## [Unreleased]
-
-- Prepared the `1.0.0-rc.4` release.
-- Prepared the `1.0.0-rc.3` release.
-- Prepared the `1.0.0-rc.2` release.
-- Forked upstream `pairing` as `zakura-pairing` and updated to `group 0.14`.
-
-## [0.23.0] - 2022-12-06
-
-### Changed
-
-- Bumped dependencies to `group 0.13`.
-
-## [0.22.0] - 2021-05-04
-
-### Changed
-
-- MSRV bumped to `1.56.0`
-- Bumped dependencies to `group 0.12`.
-- Removed unused dev dependencies.
-
-## [0.21.0] - 2021-09-02
-
-### Added
-
-- `Debug + Send + Sync` bounds on `pairing::Engine`.
-- Various bounds on `pairing::MillerLoopResult`:
-  - `Copy + Default + Debug`
-  - `Send + Sync`
-  - `Add<Output = Self> + AddAssign`
-  - `for<'a> Add<&'a Self, Output = Self>`
-  - `for<'a> AddAssign<&'a Self>`
-
-## [0.20.0] - 2021-06-01
-
-### Added
-
-- `pairing::group`, which re-exports the `group` crate to make version-matching
-  easier. `ff` is transitively re-exported as `pairing::group::ff`.
-
-### Changed
-
-- Bumped `group` to 0.10.
-- MSRV is now 1.51.0.
-
-## [0.19.0] - 2021-01-26
-
-### Changed
-
-- Bumped dependencies to `ff 0.9` and `group 0.9`.
-- MSRV is now 1.47.0.
-
-## [0.18.0] - 2020-09-08
-
-### Added
-
-- `no-std` support.
-
-### Changed
-
-- Bumped dependencies to `ff 0.8` and `group 0.8`.
-- MSRV is now 1.44.0.
-
-### Removed
-
-- Obsolete feature flags `expose-arith` and `unstable-features`.

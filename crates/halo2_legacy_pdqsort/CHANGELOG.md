@@ -3,17 +3,21 @@
 All notable changes to this crate will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to Rust's notion of
-[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+and this crate adheres to Rust's notion of
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries describe
+the crate's public API and observable behavior from a consumer's perspective;
+internal implementation details are not tracked here.
+
+## About this fork
+
+`zakura-halo2-legacy-pdqsort` is Zakura's fork of the upstream `halo2_legacy_pdqsort` crate. This changelog
+begins at the fork point: upstream history up to the fork is documented in the
+upstream repository, and the fork's version lineage restarts at `1.0.0` rather
+than continuing the upstream `0.1.0` numbering.
+
+- Forked from: `halo2_legacy_pdqsort 0.1.0`, published from
+  [zcash/halo2_legacy_pdqsort](https://github.com/zcash/halo2_legacy_pdqsort) at commit
+  [`c3b69083`](https://github.com/zcash/halo2_legacy_pdqsort/commit/c3b69083adcc5ab63d02ffbbc716ee19bdcdc81f).
+- Imported into this repository in commit `16d18d2a43d0aecdfcf9e9d02469c16ebf20e50b`.
 
 ## [Unreleased]
-
-- Prepared the `1.0.0-rc.4` release.
-- Prepared the `1.0.0-rc.3` release.
-- Prepared the `1.0.0-rc.2` release.
-- Updated test randomness to `rand 0.10`.
-- Forked from upstream `halo2_legacy_pdqsort` and renamed to `zakura-halo2-legacy-pdqsort`; this changelog starts
-  fresh for the Zakura fork's initial release.
-- Restarted the version lineage at 1.0.0, leaving behind the inherited upstream
-  version (0.1.0); the initial Zakura release will be preceded by `1.0.0-rc` release
-  candidates.
