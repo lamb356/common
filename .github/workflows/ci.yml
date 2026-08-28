@@ -103,23 +103,23 @@ jobs:
           # array, the path-routing cases, and the reverse-dependency graph
           # together. This does not prove those three mappings are equivalent.
           handled_members=(
-            bellman
-            bls12_381
-            halo2_gadgets
-            halo2_legacy_pdqsort
-            halo2_poseidon
-            halo2_proofs
-            jubjub
-            orchard
-            pairing
-            pasta_curves
-            reddsa
-            redjubjub
-            sapling-crypto
-            sinsemilla
-            zcash_keys
-            zcash_primitives
-            zcash_proofs
+            crates/bellman
+            crates/bls12_381
+            crates/halo2_gadgets
+            crates/halo2_legacy_pdqsort
+            crates/halo2_poseidon
+            crates/halo2_proofs
+            crates/jubjub
+            crates/orchard
+            crates/pairing
+            crates/pasta_curves
+            crates/reddsa
+            crates/redjubjub
+            crates/sapling-crypto
+            crates/sinsemilla
+            crates/zcash_keys
+            crates/zcash_primitives
+            crates/zcash_proofs
           )
           workspace_packages=$(python3 .github/scripts/workspace_packages.py)
           workspace_members=()
@@ -135,38 +135,38 @@ jobs:
 
           while IFS= read -r path; do
             case "$path" in
-              halo2_gadgets/*|halo2_poseidon/*|halo2_proofs/*)
+              crates/halo2_gadgets/*|crates/halo2_poseidon/*|crates/halo2_proofs/*)
                 halo2=true
                 ;;
-              halo2_legacy_pdqsort/*)
+              crates/halo2_legacy_pdqsort/*)
                 halo2_legacy_pdqsort=true
                 ;;
-              orchard/*)
+              crates/orchard/*)
                 orchard=true
                 ;;
-              pasta_curves/*)
+              crates/pasta_curves/*)
                 pasta_curves=true
                 ;;
-              reddsa/*)
+              crates/reddsa/*)
                 reddsa=true
                 ;;
-              redjubjub/*)
+              crates/redjubjub/*)
                 redjubjub=true
                 ;;
-              bellman/*|bls12_381/*|jubjub/*|pairing/*)
+              crates/bellman/*|crates/bls12_381/*|crates/jubjub/*|crates/pairing/*)
                 # These crates form the shared Sapling/Groth16 foundation.
                 # Jubjub also feeds RedDSA, so conservatively run both stacks
                 # for changes to any member of this tightly-coupled group.
                 reddsa=true
                 sapling_crypto=true
                 ;;
-              sapling-crypto/*)
+              crates/sapling-crypto/*)
                 sapling_crypto=true
                 ;;
-              sinsemilla/*)
+              crates/sinsemilla/*)
                 sinsemilla=true
                 ;;
-              zcash_keys/*|zcash_primitives/*|zcash_proofs/*)
+              crates/zcash_keys/*|crates/zcash_primitives/*|crates/zcash_proofs/*)
                 librustzcash=true
                 ;;
               Cargo.toml|Cargo.lock|rust-toolchain.toml|.cargo/*|.github/scripts/check_rust_group.sh|.github/scripts/workspace_packages.py|.github/workflows/ci.yml|.github/workflows/maintenance.yml)

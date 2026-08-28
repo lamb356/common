@@ -21,7 +21,6 @@ exclude_path = [
     "target",
     ".git",
     "supply-chain",
-    "sapling-crypto/supply-chain",
 ]
 
 accept = ["200", "202", "204", "206", "301", "302", "307", "308", "429"]
