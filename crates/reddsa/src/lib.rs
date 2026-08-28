@@ -10,9 +10,9 @@
 
 #![no_std]
 #![deny(missing_docs)]
-#![doc = include_str!("../README.md")]
 
-//! Docs require the `nightly` feature until RFC 1990 lands.
+//! A standalone implementation of the RedDSA signature scheme, instantiated
+//! over the Jubjub and Pallas curves.
 
 #[cfg(feature = "alloc")]
 #[macro_use]

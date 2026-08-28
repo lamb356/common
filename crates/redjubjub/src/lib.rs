@@ -9,8 +9,10 @@
 // - Henry de Valence <hdevalence@hdevalence.ca>
 
 #![deny(missing_docs)]
-#![doc = include_str!("../README.md")]
 #![no_std]
+
+//! A standalone implementation of the RedJubjub signature scheme, a thin
+//! wrapper over the RedDSA implementation in `reddsa`.
 
 #[cfg(feature = "std")]
 extern crate std;
