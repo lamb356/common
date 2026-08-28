@@ -1,7 +1,7 @@
 name: Maintenance
 
 # Expensive and dependency-drift checks stay off the pull-request critical
-# path. API documentation is intentionally not built in this repository.
+# path. API documentation is built by ci.yml's docs-build job.
 on:
   push:
     branches:

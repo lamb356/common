@@ -22,6 +22,9 @@ on:
       - .github/scripts/check_markdown_delta.sh
       - .github/scripts/test_check_markdown_delta.sh
       - .github/workflows/docs.yml
+  # The event handler below already routes merge_group SHAs; without this
+  # trigger a required "docs policy" check would hang merge-queue entries.
+  merge_group:
 
 permissions:
   contents: read
