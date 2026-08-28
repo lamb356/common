@@ -1,7 +1,10 @@
-Copyrights in the "jubjub" library are retained by their contributors. No
-copyright assignment is required to contribute to the "jubjub" library.
+Copyright (c) The Zakura Contributors
 
-The "jubjub" library is licensed under either of
+Copyrights in the "zakura-jubjub" library are retained by their contributors. No
+copyright assignment is required to contribute to the "zakura-jubjub"
+library.
+
+The "zakura-jubjub" library is licensed under either of
 
  * Apache License, Version 2.0, (see ./LICENSE-APACHE or http://www.apache.org/licenses/LICENSE-2.0)
  * MIT license (see ./LICENSE-MIT or http://opensource.org/licenses/MIT)

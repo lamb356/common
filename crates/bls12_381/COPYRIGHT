@@ -1,7 +1,10 @@
-Copyrights in the "bls12_381" library are retained by their contributors. No
-copyright assignment is required to contribute to the "bls12_381" library.
+Copyright (c) The Zakura Contributors
 
-The "bls12_381" library is licensed under either of
+Copyrights in the "zakura-bls12-381" library are retained by their contributors. No
+copyright assignment is required to contribute to the "zakura-bls12-381"
+library.
+
+The "zakura-bls12-381" library is licensed under either of
 
  * Apache License, Version 2.0, (see ./LICENSE-APACHE or http://www.apache.org/licenses/LICENSE-2.0)
  * MIT license (see ./LICENSE-MIT or http://opensource.org/licenses/MIT)

@@ -1,6 +1,27 @@
-This software is licensed optionally under either the MIT license or Apache 2.0
-license, the full text of which may be found respectively in the LICENCE.MIT and
-LICENCE.Apache-2.0 files contained within this software distribution.
+Copyright (c) The Zakura Contributors
+
+Copyrights in the "zakura-reddsa" library are retained by their contributors. No
+copyright assignment is required to contribute to the "zakura-reddsa"
+library.
+
+The "zakura-reddsa" library is licensed under either of
+
+ * Apache License, Version 2.0, (see ./LICENSE-APACHE or http://www.apache.org/licenses/LICENSE-2.0)
+ * MIT license (see ./LICENSE-MIT or http://opensource.org/licenses/MIT)
+
+at your option.
+
+Unless you explicitly state otherwise, any contribution intentionally
+submitted for inclusion in the work by you, as defined in the Apache-2.0
+license, shall be dual licensed as above, without any additional terms or
+conditions.
+
+==============================================================================
+
+This library is a fork of the upstream "reddsa" crate. Upstream copyright
+notices are preserved below:
+
+  Copyright 2019-2021 Zcash Foundation
 
 ==============================================================================
 
@@ -40,4 +61,4 @@ TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
 PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
 LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.

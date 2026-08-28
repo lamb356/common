@@ -1,7 +1,10 @@
-Copyrights in the "bellman" library are retained by their contributors. No
-copyright assignment is required to contribute to the "bellman" library.
+Copyright (c) The Zakura Contributors
 
-The "bellman" library is licensed under either of
+Copyrights in the "zakura-bellman" library are retained by their contributors. No
+copyright assignment is required to contribute to the "zakura-bellman"
+library.
+
+The "zakura-bellman" library is licensed under either of
 
  * Apache License, Version 2.0, (see ./LICENSE-APACHE or http://www.apache.org/licenses/LICENSE-2.0)
  * MIT license (see ./LICENSE-MIT or http://opensource.org/licenses/MIT)
