@@ -40,5 +40,5 @@ than continuing the upstream `0.10.0` numbering.
   satisfies through that crate's blanket implementation), and the `Curve`
   implementation's affine associated type is now named `Affine` instead of
   `AffineRepr`.
-- Raised the minimum supported Rust version to 1.88 and migrated the crate to
+- Raised the minimum supported Rust version to 1.91 and migrated the crate to
   the 2024 edition.

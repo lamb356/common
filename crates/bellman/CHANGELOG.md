@@ -41,5 +41,5 @@ than continuing the upstream `0.14.0` numbering.
 - Stopped emitting `log` records under the `multicore` feature; the
   deadlock-guard message in `multicore::Waiter::wait` now prints to standard
   error before the panic instead of being logged.
-- Raised the minimum supported Rust version to 1.88 and migrated the crate to
+- Raised the minimum supported Rust version to 1.91 and migrated the crate to
   the 2024 edition.

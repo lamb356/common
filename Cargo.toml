@@ -59,7 +59,7 @@ authors = [
     "Sean Bowe <ewillbefull@gmail.com>",
 ]
 edition = "2024"
-rust-version = "1.88"
+rust-version = "1.91"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/zakura-core/libraries"
 # One shared README for every published crate; cargo package copies it into

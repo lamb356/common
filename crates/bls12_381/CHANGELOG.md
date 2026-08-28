@@ -57,7 +57,7 @@ than continuing the upstream `0.8.0` numbering.
   gained a message type parameter and an output-length type parameter; and
   `HashToField` gained a `XofOutputLength` associated type. The points and
   expanded bytes produced for a given input are unchanged.
-- Raised the minimum supported Rust version to 1.88 and migrated the crate to
+- Raised the minimum supported Rust version to 1.91 and migrated the crate to
   the 2024 edition.
 
 ### Removed

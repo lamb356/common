@@ -33,5 +33,5 @@ than continuing the upstream `0.8.0` numbering.
 - Updated `rand_core` from 0.6 to 0.10; the RNG parameters of `SigningKey::new`,
   `SigningKey::sign`, and `batch::Verifier::verify` are now bounded by `Rng +
   CryptoRng` instead of `RngCore + CryptoRng`.
-- Raised the minimum supported Rust version to 1.88 and migrated the crate to
+- Raised the minimum supported Rust version to 1.91 and migrated the crate to
   the 2024 edition.

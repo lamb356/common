@@ -122,7 +122,7 @@ fork point and the released fork:
    signatures (the `ff`/`group` 0.14 stack, `rand_core` 0.10, the
    fork-internal replacements of `bellman`/`bls12_381`/`jubjub`/`pairing`/…);
    added, removed, or changed public items and trait implementations; added or
-   removed cargo features and changed feature defaults; MSRV (1.88) and
+   removed cargo features and changed feature defaults; MSRV (1.91) and
    edition (2024); behavioral changes observable through the same API.
 3. Phrase entries for someone adapting code from the upstream crate to the
    fork, not for someone reviewing our development history.

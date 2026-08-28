@@ -46,3 +46,4 @@ than continuing the upstream `0.30.0` numbering.
 - Changed the default features from `local-prover` and `multicore` to
   `multicore` alone; enable `local-prover` (or `bundled-prover`) explicitly to
   keep the `prover` module and `LocalTxProver` available.
+- Raised the minimum supported Rust version from 1.88 to 1.91.

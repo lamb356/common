@@ -32,3 +32,4 @@ than continuing the upstream `0.16.1` numbering.
   (`zakura-orchard` 1.0.0), whose types appear in this crate's API.
 - Replaced the upstream `sapling-crypto` dependency with the Zakura fork
   (`zakura-sapling-crypto` 1.0.0), whose types appear in this crate's API.
+- Raised the minimum supported Rust version from 1.88 to 1.91.

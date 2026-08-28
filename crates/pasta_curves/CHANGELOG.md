@@ -75,5 +75,5 @@ than continuing the upstream `0.5.2` numbering.
 - Sped up field and curve arithmetic across all targets; scalar multiplication,
   batch normalization to affine, square roots, and hashing to the curve are
   faster with no changes to the API.
-- Raised the minimum supported Rust version to 1.88 and migrated the crate to
+- Raised the minimum supported Rust version to 1.91 and migrated the crate to
   the 2024 edition.

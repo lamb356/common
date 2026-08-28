@@ -51,5 +51,5 @@ than continuing the upstream `0.1.0` numbering.
   crate exposes now implement the `ff`/`group` 0.14 traits.
 - Sped up `HashDomain::hash_to_point` and `HashDomain::hash`; results and
   exceptional-case failure behavior are unchanged.
-- Raised the minimum supported Rust version to 1.88 and migrated the crate to
+- Raised the minimum supported Rust version to 1.91 and migrated the crate to
   the 2024 edition.

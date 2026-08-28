@@ -39,5 +39,5 @@ than continuing the upstream `0.5.2` numbering.
   `rand_core` 0.6: their APIs still accept `rand_core` 0.6 RNGs, and the
   re-exported `rand_core` now includes `OsRng` because the `frost` feature
   enables its `getrandom` feature.
-- Raised the minimum supported Rust version to 1.88 and migrated the crate to
+- Raised the minimum supported Rust version to 1.91 and migrated the crate to
   the 2024 edition.

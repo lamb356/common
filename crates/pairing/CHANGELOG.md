@@ -34,5 +34,5 @@ than continuing the upstream `0.23.0` numbering.
   0.13 to 0.14 and `rand_core` from 0.6 to 0.10); the `pub use group` re-export
   and the trait bounds on `Engine`, `PairingCurveAffine`, `MultiMillerLoop`, and
   `MillerLoopResult` now require implementations from that stack.
-- Raised the minimum supported Rust version to 1.88 and migrated the crate to
+- Raised the minimum supported Rust version to 1.91 and migrated the crate to
   the 2024 edition.
