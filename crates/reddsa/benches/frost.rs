@@ -1,12 +1,12 @@
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use reddsa::frost::redpallas::{rand_core::OsRng, PallasBlake2b512};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use reddsa::frost::redpallas::{PallasBlake2b512, rand_core::OsRng};
 
 use std::collections::BTreeMap;
 
 use reddsa::frost::redpallas::rand_core::{CryptoRng, RngCore};
 
 use frost_rerandomized::frost_core::Ciphersuite;
-use frost_rerandomized::{frost_core as frost, RandomizedParams};
+use frost_rerandomized::{RandomizedParams, frost_core as frost};
 
 /// Benchmark FROST signing with the specified ciphersuite.
 fn bench_rerandomized_sign<

@@ -59,7 +59,7 @@ use alloc::vec::Vec;
 #[cfg(feature = "multicore")]
 use maybe_rayon::prelude::*;
 
-use super::super::{SignedMagnitude, GLV_COMPONENT_BITS};
+use super::super::{GLV_COMPONENT_BITS, SignedMagnitude};
 
 /// The narrowest supported prepared radix width ($B = 32$).
 pub(crate) const MIN_WINDOW_BITS: usize = 5;
@@ -820,9 +820,7 @@ impl Codebook {
     /// The index of the trivial variant $\eta = 1$, whose prepared layer is
     /// the bases themselves (used by the tail MSM and identity checks).
     pub(crate) fn unit_variant(&self) -> usize {
-        
-        self
-            .variants
+        self.variants
             .iter()
             .position(|&eta| eta == (Eis { a: 1, b: 0 }))
             .expect("the trivial coset lifts to 1")
@@ -1121,7 +1119,7 @@ fn coefficient_program(
 
 #[cfg(test)]
 mod tests {
-    use super::super::super::{decompose, testutil, GlvParams};
+    use super::super::super::{GlvParams, decompose, testutil};
     use super::*;
     use crate::{pallas, vesta};
     use ff::{Field, WithSmallOrderMulGroup};
@@ -1293,11 +1291,7 @@ mod tests {
             let radix = C::ScalarExt::from(1u64 << mode.window_bits());
             let signed = |v: i64| {
                 let m = C::ScalarExt::from(v.unsigned_abs());
-                if v < 0 {
-                    -m
-                } else {
-                    m
-                }
+                if v < 0 { -m } else { m }
             };
             let check = |k: C::ScalarExt| {
                 let (first, second) = decompose::<C>(&k);

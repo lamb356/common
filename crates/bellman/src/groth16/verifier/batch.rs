@@ -29,8 +29,8 @@ use rand::rngs::SysRng;
 use rayon::{iter::ParallelIterator, prelude::ParallelSlice};
 
 use crate::{
-    groth16::{PreparedVerifyingKey, Proof, VerifyingKey},
     VerificationError,
+    groth16::{PreparedVerifyingKey, Proof, VerifyingKey},
 };
 
 /// A batch verification item.

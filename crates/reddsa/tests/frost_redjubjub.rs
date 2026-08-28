@@ -4,7 +4,7 @@ use frost_rerandomized::frost_core::{Ciphersuite, Group, GroupError};
 use group::GroupEncoding;
 
 use reddsa::{
-    frost::redjubjub::{rand_core::OsRng, JubjubBlake2b512},
+    frost::redjubjub::{JubjubBlake2b512, rand_core::OsRng},
     sapling,
 };
 

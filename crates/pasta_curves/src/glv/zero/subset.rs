@@ -28,7 +28,7 @@ use alloc::vec::Vec;
 use ff::PrimeField;
 use group::CurveAffine as _;
 
-use super::super::{reduce_affine_buckets, scalar_limbs, AffinePoint, GlvParams};
+use super::super::{AffinePoint, GlvParams, reduce_affine_buckets, scalar_limbs};
 
 /// A prepared subset-sum table over a fixed base list.
 #[derive(Debug)]

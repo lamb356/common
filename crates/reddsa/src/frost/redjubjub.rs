@@ -7,7 +7,7 @@ use alloc::collections::BTreeMap;
 use frost_rerandomized::RandomizedCiphersuite;
 use group::GroupEncoding;
 #[cfg(feature = "alloc")]
-use group::{ff::Field as _, ff::PrimeField, Group as _};
+use group::{Group as _, ff::Field as _, ff::PrimeField};
 
 pub mod rerandomized;
 

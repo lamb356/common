@@ -1,6 +1,6 @@
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 
-use rand::{rng as thread_rng, RngExt};
+use rand::{RngExt, rng as thread_rng};
 use redjubjub::*;
 use std::convert::TryFrom;
 

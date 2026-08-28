@@ -12,7 +12,7 @@ use crate::once::OnceTable;
 use ff::{FieldBits, PrimeFieldBits};
 
 use super::portable;
-use crate::arithmetic::{adc, mac, sbb, SqrtTableHelpers};
+use crate::arithmetic::{SqrtTableHelpers, adc, mac, sbb};
 #[cfg(feature = "deferred")]
 use crate::deferred::{DeferredField, Product};
 
@@ -44,11 +44,7 @@ impl fmt::Debug for Fp {
 
 impl From<bool> for Fp {
     fn from(bit: bool) -> Fp {
-        if bit {
-            Fp::one()
-        } else {
-            Fp::zero()
-        }
+        if bit { Fp::one() } else { Fp::zero() }
     }
 }
 

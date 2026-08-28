@@ -100,8 +100,8 @@ use maybe_rayon::prelude::*;
 
 use super::orbit;
 use super::{
-    checked_signed_magnitudes, current_num_threads, decompose, private, reduce_affine_buckets,
-    AffinePoint, GlvParams, SignedMagnitude,
+    AffinePoint, GlvParams, SignedMagnitude, checked_signed_magnitudes, current_num_threads,
+    decompose, private, reduce_affine_buckets,
 };
 
 mod codebook;
@@ -114,8 +114,8 @@ mod prepared;
 pub(crate) mod subset;
 
 pub use codebook::CodebookMode;
-use codebook::{unpack_code, Codebook, CoeffAdd, Recoded};
-use prepared::{unit_coords, VariantTable};
+use codebook::{Codebook, CoeffAdd, Recoded, unpack_code};
+use prepared::{VariantTable, unit_coords};
 
 /// Widths the tail MSM chooses between. Only the residuals ride the tail
 /// (extra terms run as their own MSM), and residuals are tiny, so the
@@ -592,12 +592,13 @@ impl<C: GlvParams> PreparedZeroMsm<C> {
         let scalars: Vec<C::ScalarExt> = extras.iter().map(|(s, _)| *s).collect();
         let points: Vec<C::AffineExt> = extras.iter().map(|(_, q)| *q).collect();
         if extras.len() >= EXTRAS_PLANNED_MIN
-            && let Some(sum) = super::try_multiexp::<C>(&scalars, &points) {
-                return Some(sum);
-            }
-            // The planner declining (or an arithmetic guard failing) is
-            // unreachable for full-width verifier extras at these counts,
-            // but the paths below stay exact regardless.
+            && let Some(sum) = super::try_multiexp::<C>(&scalars, &points)
+        {
+            return Some(sum);
+        }
+        // The planner declining (or an arithmetic guard failing) is
+        // unreachable for full-width verifier extras at these counts,
+        // but the paths below stay exact regardless.
         // Small counts: Signed-Booth at a width from the bucket/visit
         // balance (per-window bucket work dominates until the visit count
         // catches up), run serially — this whole job is sub-millisecond
@@ -1225,7 +1226,9 @@ mod tests {
         assert!(!prepared.is_zero_batch_vartime(&[&scalars_a, &broken]));
 
         let challenge = C::ScalarExt::from(0xDEAD_BEEFu64).square() + C::ScalarExt::ONE;
-        assert!(prepared.is_zero_batch_with_challenge_vartime(&[&scalars_a, &scalars_b], challenge));
+        assert!(
+            prepared.is_zero_batch_with_challenge_vartime(&[&scalars_a, &scalars_b], challenge)
+        );
         assert!(!prepared.is_zero_batch_with_challenge_vartime(&[&scalars_a, &broken], challenge));
         // An empty batch is vacuously true through both entry points.
         assert!(prepared.is_zero_batch_with_challenge_vartime(&[], challenge));
@@ -1385,11 +1388,7 @@ mod tests {
                 let mut expected = C::identity();
                 let signed = |v: i64| {
                     let m = C::ScalarExt::from(v.unsigned_abs());
-                    if v < 0 {
-                        -m
-                    } else {
-                        m
-                    }
+                    if v < 0 { -m } else { m }
                 };
                 for (&delta, bucket) in codebook.coefficients().iter().zip(&buckets) {
                     if let Some(point) = bucket {

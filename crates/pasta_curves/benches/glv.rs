@@ -1,9 +1,9 @@
 //! Benchmarks for GLV scalar multiplication.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 
 use ff::Field;
-use pasta_curves::glv::{bench_internals, Decomposed, GlvParams, Table};
+use pasta_curves::glv::{Decomposed, GlvParams, Table, bench_internals};
 use pasta_curves::{pallas, vesta};
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;

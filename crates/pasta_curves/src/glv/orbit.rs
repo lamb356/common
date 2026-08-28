@@ -94,8 +94,8 @@ use group::CurveAffine as _;
 use maybe_rayon::prelude::*;
 
 use super::{
-    private, reduce_affine_buckets, AffinePoint, GlvParams, MagnitudeProfile, SignedMagnitude,
-    GLV_COMPONENT_BITS,
+    AffinePoint, GLV_COMPONENT_BITS, GlvParams, MagnitudeProfile, SignedMagnitude, private,
+    reduce_affine_buckets,
 };
 
 /// The window widths [`multiexp`] supports. Wider than 6 needs
@@ -678,7 +678,7 @@ pub(super) fn estimated_costs(
 
 #[cfg(test)]
 mod tests {
-    use super::super::{decompose, digit_scalar, testutil, GlvParams};
+    use super::super::{GlvParams, decompose, digit_scalar, testutil};
     use super::*;
     use crate::arithmetic::CurveExt;
     use crate::{pallas, vesta};
@@ -859,11 +859,7 @@ mod tests {
                         let (da, db) = code_coeffs(&params, code);
                         let signed = |v: i32| {
                             let m = C::ScalarExt::from(u64::from(v.unsigned_abs()));
-                            if v < 0 {
-                                -m
-                            } else {
-                                m
-                            }
+                            if v < 0 { -m } else { m }
                         };
                         acc += signed(da) + signed(db) * C::ScalarExt::ZETA;
                     }
@@ -917,11 +913,7 @@ mod tests {
                         let weight = {
                             let signed = |v: i16| {
                                 let m = C::ScalarExt::from(u64::from(v.unsigned_abs()));
-                                if v < 0 {
-                                    -m
-                                } else {
-                                    m
-                                }
+                                if v < 0 { -m } else { m }
                             };
                             signed(node.a) + signed(node.b) * C::ScalarExt::ZETA
                         };
@@ -985,11 +977,7 @@ mod tests {
             let expected = digit_scalar::<C::ScalarExt>(1 + unit as u8);
             let signed = |v: i32| {
                 let m = C::ScalarExt::from(u64::from(v.unsigned_abs()));
-                if v < 0 {
-                    -m
-                } else {
-                    m
-                }
+                if v < 0 { -m } else { m }
             };
             assert_eq!(signed(da) + signed(db) * C::ScalarExt::ZETA, expected);
         }

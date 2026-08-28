@@ -86,7 +86,7 @@ use group::CurveAffine as _;
 #[cfg(feature = "multicore")]
 use maybe_rayon::prelude::*;
 
-use crate::arithmetic::{mac, sbb, CurveExt};
+use crate::arithmetic::{CurveExt, mac, sbb};
 use crate::{pallas, vesta};
 
 #[cfg(feature = "orbits")]
@@ -451,11 +451,7 @@ fn digit_scalar<F: WithSmallOrderMulGroup<3>>(code: u8) -> F {
     let (da, db) = digit_coeffs(code);
     let signed = |v: i8| {
         let m = F::from(u64::from(v.unsigned_abs()));
-        if v < 0 {
-            -m
-        } else {
-            m
-        }
+        if v < 0 { -m } else { m }
     };
     signed(da) + signed(db) * F::ZETA
 }
@@ -840,9 +836,10 @@ fn booth_multiexp_estimate<C: GlvParams>(
     for candidate in window_bits..=window_bits.checked_add(1)? {
         if let Some((work, _)) =
             estimated_signed_booth_costs(glv_terms, GLV_COMPONENT_BITS, candidate, num_threads)
-            && best.is_none_or(|(best_work, _)| work < best_work) {
-                best = Some((work, candidate));
-            }
+            && best.is_none_or(|(best_work, _)| work < best_work)
+        {
+            best = Some((work, candidate));
+        }
     }
     best
 }
@@ -4244,11 +4241,7 @@ mod tests {
             let image = |v: (i32, i32)| {
                 let signed = |c: i32| {
                     let m = F::from(u64::from(c.unsigned_abs()));
-                    if c < 0 {
-                        -m
-                    } else {
-                        m
-                    }
+                    if c < 0 { -m } else { m }
                 };
                 signed(v.0) + signed(v.1) * F::ZETA
             };
@@ -5178,10 +5171,12 @@ mod tests {
                 reference(&mut expected, omega, log_n);
                 let mut actual = alloc::vec![C::AffineExt::identity(); n];
                 fft_vartime(&input, &mut actual, omega, log_n);
-                assert!(actual
-                    .iter()
-                    .zip(expected)
-                    .all(|(actual, expected)| C::from(*actual) == expected));
+                assert!(
+                    actual
+                        .iter()
+                        .zip(expected)
+                        .all(|(actual, expected)| C::from(*actual) == expected)
+                );
             }
         }
     }
@@ -5876,7 +5871,9 @@ mod tests {
                         // comment's measurement trap).
                         assert!(booth_run().is_some());
                         for &c in &orbit_widths {
-                            assert!(orbit::multiexp::<C>(&components, &bases, c, threads).is_some());
+                            assert!(
+                                orbit::multiexp::<C>(&components, &bases, c, threads).is_some()
+                            );
                         }
                         let mut booth_samples = Vec::with_capacity(iters);
                         let mut orbit_samples =

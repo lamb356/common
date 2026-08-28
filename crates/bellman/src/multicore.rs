@@ -4,9 +4,9 @@
 
 #[cfg(feature = "multicore")]
 mod implementation {
-    use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::sync::mpsc::{sync_channel, Receiver};
     use std::sync::LazyLock;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::mpsc::{Receiver, sync_channel};
 
     use rayon::current_num_threads;
 

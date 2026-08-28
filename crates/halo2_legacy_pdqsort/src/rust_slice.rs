@@ -6,7 +6,7 @@
 fn sort_unstable() {
     // MODIFIED: test the implementations in this crate.
     use crate::sort::{heapsort, quicksort};
-    use rand::{prelude::IndexedRandom, rngs::StdRng, RngExt, SeedableRng};
+    use rand::{RngExt, SeedableRng, prelude::IndexedRandom, rngs::StdRng};
 
     // Miri is too slow (but still need to `chain` to make the types match)
     let lens = if cfg!(miri) {

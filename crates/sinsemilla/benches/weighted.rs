@@ -1,8 +1,8 @@
 use std::hint::black_box;
 use std::mem;
 
-use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, Throughput};
-use sinsemilla::{weighted::UncheckedFixedLengthHashDomain, HashDomain, K};
+use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use sinsemilla::{HashDomain, K, weighted::UncheckedFixedLengthHashDomain};
 
 const MERKLE_WORDS: usize = 52;
 const MERKLE_BITS: usize = MERKLE_WORDS * K;

@@ -22,9 +22,9 @@ use alloc::vec::Vec;
 use core::convert::TryFrom;
 
 use group::{
+    GroupEncoding,
     cofactor::CofactorGroup,
     ff::{Field, PrimeField},
-    GroupEncoding,
 };
 use rand_core::{CryptoRng, Rng};
 

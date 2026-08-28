@@ -42,9 +42,9 @@ use core::iter::Sum;
 use core::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use ff::{BatchInverter, Field};
 use group::{
+    Curve, CurveAffine, Group, GroupEncoding,
     cofactor::{CofactorCurve, CofactorGroup},
     prime::PrimeGroup,
-    Curve, CurveAffine, Group, GroupEncoding,
 };
 use rand_core::TryRng;
 use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};

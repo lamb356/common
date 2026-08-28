@@ -15,9 +15,9 @@ use core::{
     marker::PhantomData,
 };
 
-use group::{cofactor::CofactorGroup, ff::PrimeField, GroupEncoding};
+use group::{GroupEncoding, cofactor::CofactorGroup, ff::PrimeField};
 
-use crate::{hex_if_possible, Error, Randomizer, SigType, Signature, SpendAuth};
+use crate::{Error, Randomizer, SigType, Signature, SpendAuth, hex_if_possible};
 
 /// A refinement type for `[u8; 32]` indicating that the bytes represent
 /// an encoding of a RedDSA verification key.

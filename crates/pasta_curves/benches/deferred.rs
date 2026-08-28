@@ -1,5 +1,5 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use pasta_curves::{deferred::DeferredField, Fp, Fq};
+use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
+use pasta_curves::{Fp, Fq, deferred::DeferredField};
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 

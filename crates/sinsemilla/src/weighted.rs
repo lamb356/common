@@ -65,7 +65,7 @@ use core::mem;
 use group::{Curve, CurveAffine as _, Group};
 use pasta_curves::{arithmetic::CurveAffine as _, pallas};
 
-use super::{sinsemilla_s_affine, HashDomain, MessageWords, C, K};
+use super::{C, HashDomain, K, MessageWords, sinsemilla_s_affine};
 
 const GENERATOR_COUNT: usize = 1 << K;
 
@@ -240,9 +240,11 @@ impl<const N: usize> UncheckedFixedLengthHashDomain<N> {
         let mut affine_row: Vec<_> = sinsemilla_s_affine().iter().copied().collect();
 
         for exponent in 0..N {
-            assert!(affine_row
-                .iter()
-                .all(|point| !bool::from(point.is_identity())));
+            assert!(
+                affine_row
+                    .iter()
+                    .all(|point| !bool::from(point.is_identity()))
+            );
             weighted_generators.extend(affine_row.iter().copied());
 
             if exponent + 1 < N {
@@ -265,9 +267,11 @@ impl<const N: usize> UncheckedFixedLengthHashDomain<N> {
             &first_accumulator_points,
             &mut weighted_generators[first_row_start..],
         );
-        assert!(weighted_generators[first_row_start..]
-            .iter()
-            .all(|point| !bool::from(point.is_identity())));
+        assert!(
+            weighted_generators[first_row_start..]
+                .iter()
+                .all(|point| !bool::from(point.is_identity()))
+        );
 
         let mut fused_first_two = Vec::new();
         if N > 1 {
@@ -663,8 +667,8 @@ mod tests {
     use pasta_curves::pallas;
     use subtle::CtOption;
 
-    use super::{UncheckedFixedLengthHashDomain, GENERATOR_COUNT};
-    use crate::{sinsemilla_s_affine, HashDomain, K};
+    use super::{GENERATOR_COUNT, UncheckedFixedLengthHashDomain};
+    use crate::{HashDomain, K, sinsemilla_s_affine};
 
     const MERKLE_WORDS: usize = 52;
     const MERKLE_DOMAIN: &str = "z.cash:Orchard-MerkleCRH";
@@ -791,9 +795,11 @@ mod tests {
             );
         }
         assert!(weighted.hash_words_batch(&[]).is_empty());
-        assert!(weighted
-            .hash_words_batch_with_workspace(&[], &mut workspace)
-            .is_empty());
+        assert!(
+            weighted
+                .hash_words_batch_with_workspace(&[], &mut workspace)
+                .is_empty()
+        );
     }
 
     #[test]

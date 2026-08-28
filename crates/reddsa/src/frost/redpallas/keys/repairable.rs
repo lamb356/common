@@ -7,9 +7,8 @@
 use alloc::collections::BTreeMap;
 
 use crate::frost::redpallas::{
-    frost,
+    Ciphersuite, CryptoRng, Error, Identifier, PallasBlake2b512, RngCore, frost,
     keys::{KeyPackage, PublicKeyPackage},
-    Ciphersuite, CryptoRng, Error, Identifier, PallasBlake2b512, RngCore,
 };
 
 /// A delta value which is the output of step 1 of RTS.

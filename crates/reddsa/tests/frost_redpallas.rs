@@ -6,7 +6,7 @@ use frost_rerandomized::frost_core::{self as frost, Ciphersuite, Group, GroupErr
 use group::GroupEncoding;
 
 use reddsa::{
-    frost::redpallas::{keys::EvenY, rand_core::OsRng, PallasBlake2b512},
+    frost::redpallas::{PallasBlake2b512, keys::EvenY, rand_core::OsRng},
     orchard,
 };
 

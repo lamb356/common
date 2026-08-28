@@ -7,7 +7,7 @@ use alloc::collections::BTreeMap;
 use frost_rerandomized::RandomizedCiphersuite;
 use group::GroupEncoding;
 #[cfg(feature = "alloc")]
-use group::{ff::Field as FFField, ff::PrimeField, Group as FFGroup};
+use group::{Group as FFGroup, ff::Field as FFField, ff::PrimeField};
 use pasta_curves::pallas;
 
 pub mod rerandomized;

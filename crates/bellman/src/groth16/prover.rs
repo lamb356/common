@@ -12,7 +12,7 @@ use crate::{Circuit, ConstraintSystem, Index, LinearCombination, SynthesisError,
 
 use crate::domain::{EvaluationDomain, Scalar};
 
-use crate::multiexp::{multiexp, DensityTracker, FullDensity};
+use crate::multiexp::{DensityTracker, FullDensity, multiexp};
 
 use crate::multicore::Worker;
 

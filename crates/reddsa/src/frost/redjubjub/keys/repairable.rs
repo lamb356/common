@@ -7,9 +7,8 @@
 use alloc::collections::BTreeMap;
 
 use crate::frost::redjubjub::{
-    frost,
+    Ciphersuite, CryptoRng, Error, Identifier, JubjubBlake2b512, RngCore, frost,
     keys::{KeyPackage, PublicKeyPackage},
-    Ciphersuite, CryptoRng, Error, Identifier, JubjubBlake2b512, RngCore,
 };
 
 /// A delta value which is the output of step 1 of RTS.

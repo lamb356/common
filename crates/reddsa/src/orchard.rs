@@ -7,10 +7,10 @@ use core::borrow::Borrow;
 
 use group::GroupEncoding;
 #[cfg(feature = "alloc")]
-use group::{ff::PrimeField, Group};
+use group::{Group, ff::PrimeField};
 use pasta_curves::pallas;
 
-use crate::{private, SigType};
+use crate::{SigType, private};
 
 #[cfg(feature = "alloc")]
 use crate::scalar_mul::{LookupTable5, NonAdjacentForm, VartimeMultiscalarMul};

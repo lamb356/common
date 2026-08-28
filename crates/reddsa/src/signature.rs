@@ -11,7 +11,7 @@
 //! RedDSA Signatures
 use core::{fmt, marker::PhantomData};
 
-use crate::{hex_if_possible, SigType};
+use crate::{SigType, hex_if_possible};
 
 /// A RedDSA signature.
 #[derive(Copy, Clone, Eq, PartialEq)]

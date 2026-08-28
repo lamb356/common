@@ -12,7 +12,7 @@ use core::marker::PhantomData;
 
 use blake2b_simd::{Params, State};
 
-use crate::{private::SealedScalar, SigType};
+use crate::{SigType, private::SealedScalar};
 
 /// Provides H^star, the hash-to-scalar function used by RedDSA.
 pub struct HStar<T: SigType> {

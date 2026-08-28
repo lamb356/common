@@ -744,9 +744,9 @@ impl From<AllocatedBit> for Boolean {
 
 #[cfg(test)]
 mod test {
-    use super::{field_into_allocated_bits_le, u64_into_boolean_vec_le, AllocatedBit, Boolean};
-    use crate::gadgets::test::*;
+    use super::{AllocatedBit, Boolean, field_into_allocated_bits_le, u64_into_boolean_vec_le};
     use crate::ConstraintSystem;
+    use crate::gadgets::test::*;
     use bls12_381::Scalar;
     use ff::{Field, PrimeField};
 
@@ -1640,19 +1640,9 @@ mod test {
                         }
                     } else {
                         assert_eq!(cs.get("ch"), {
-                            if expected {
-                                Scalar::ONE
-                            } else {
-                                Scalar::ZERO
-                            }
+                            if expected { Scalar::ONE } else { Scalar::ZERO }
                         });
-                        cs.set("ch", {
-                            if expected {
-                                Scalar::ZERO
-                            } else {
-                                Scalar::ONE
-                            }
-                        });
+                        cs.set("ch", if expected { Scalar::ZERO } else { Scalar::ONE });
                         assert_eq!(cs.which_is_unsatisfied().unwrap(), "ch computation");
                     }
                 }
@@ -1732,19 +1722,9 @@ mod test {
                         }
                     } else {
                         assert_eq!(cs.get("maj"), {
-                            if expected {
-                                Scalar::ONE
-                            } else {
-                                Scalar::ZERO
-                            }
+                            if expected { Scalar::ONE } else { Scalar::ZERO }
                         });
-                        cs.set("maj", {
-                            if expected {
-                                Scalar::ZERO
-                            } else {
-                                Scalar::ONE
-                            }
-                        });
+                        cs.set("maj", if expected { Scalar::ZERO } else { Scalar::ONE });
                         assert_eq!(cs.which_is_unsatisfied().unwrap(), "maj computation");
                     }
                 }

@@ -3,7 +3,7 @@ use std::println;
 use crate::scalar_mul::{self, VartimeMultiscalarMul};
 use alloc::vec::Vec;
 use group::ff::Field;
-use group::{ff::PrimeField, GroupEncoding};
+use group::{GroupEncoding, ff::PrimeField};
 use rand::rng as thread_rng;
 
 use pasta_curves::arithmetic::CurveExt;

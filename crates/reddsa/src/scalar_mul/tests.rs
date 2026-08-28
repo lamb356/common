@@ -1,5 +1,5 @@
 use alloc::vec::Vec;
-use group::{ff::Field, GroupEncoding};
+use group::{GroupEncoding, ff::Field};
 use num_bigint::BigInt;
 use num_traits::Zero;
 use rand::rng as thread_rng;

@@ -251,7 +251,7 @@ impl CommitDomain {
 mod tests {
     use alloc::vec::Vec;
 
-    use super::{HashDomain, IncompletePoint, MessageWords, C, K};
+    use super::{C, HashDomain, IncompletePoint, K, MessageWords};
     use group::Curve;
     use pasta_curves::{arithmetic::CurveExt, pallas};
     use subtle::CtOption;
@@ -296,14 +296,20 @@ mod tests {
         );
         assert_eq!(
             MessageWords::new(
-                [true, true, false, true, false, true, false, true, false, true].into_iter()
+                [
+                    true, true, false, true, false, true, false, true, false, true
+                ]
+                .into_iter()
             )
             .collect::<Vec<_>>(),
             vec![683]
         );
         assert_eq!(
             MessageWords::new(
-                [true, true, false, true, false, true, false, true, false, true, true].into_iter()
+                [
+                    true, true, false, true, false, true, false, true, false, true, true
+                ]
+                .into_iter()
             )
             .collect::<Vec<_>>(),
             vec![683, 1]

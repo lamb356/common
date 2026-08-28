@@ -130,10 +130,9 @@ impl UInt32 {
 
             match *b {
                 Boolean::Constant(b) => {
-                    if b
-                        && let Some(v) = value.as_mut() {
-                            *v |= 1;
-                        }
+                    if b && let Some(v) = value.as_mut() {
+                        *v |= 1;
+                    }
                 }
                 Boolean::Is(ref b) => match b.get_value() {
                     Some(true) => {
@@ -410,10 +409,10 @@ impl UInt32 {
 #[cfg(test)]
 mod test {
     use super::UInt32;
+    use crate::ConstraintSystem;
     use crate::gadgets::boolean::Boolean;
     use crate::gadgets::multieq::MultiEq;
     use crate::gadgets::test::*;
-    use crate::ConstraintSystem;
     use bls12_381::Scalar;
     use ff::Field;
     use rand_core::{Rng, SeedableRng};
@@ -556,7 +555,7 @@ mod test {
 
             let r = {
                 let mut cs = MultiEq::new(&mut cs);
-                
+
                 UInt32::addmany(cs.namespace(|| "addition"), &[a_bit, b_bit, c_bit]).unwrap()
             };
 

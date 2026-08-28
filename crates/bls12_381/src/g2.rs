@@ -5,8 +5,8 @@ use core::fmt;
 use core::iter::Sum;
 use core::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use group::{
-    prime::{PrimeCurve, PrimeGroup},
     Curve, CurveAffine, Group, GroupEncoding, UncompressedEncoding,
+    prime::{PrimeCurve, PrimeGroup},
 };
 use rand_core::TryRng;
 use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};
@@ -14,9 +14,9 @@ use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};
 #[cfg(feature = "alloc")]
 use group::WnafGroup;
 
+use crate::Scalar;
 use crate::fp::Fp;
 use crate::fp2::Fp2;
-use crate::Scalar;
 
 /// This is an element of $\mathbb{G}_2$ represented in the affine coordinate space.
 /// It is ideal to keep elements in this representation to reduce memory usage and

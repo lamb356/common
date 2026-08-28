@@ -140,7 +140,7 @@ macro_rules! verify {
 /// `verify!` is.
 #[cfg(any(test, debug_assertions))]
 mod checks {
-    use super::{Signed62, MASK62};
+    use super::{MASK62, Signed62};
     use core::cmp::Ordering;
 
     /// Computes `a * factor` (using `alen` active limbs of `a`) as a 5-limb

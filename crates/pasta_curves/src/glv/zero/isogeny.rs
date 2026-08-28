@@ -32,7 +32,7 @@ use alloc::vec::Vec;
 use ff::{Field, WithSmallOrderMulGroup};
 use group::CurveAffine as _;
 
-use super::super::{batch_invert_nonzero, private, GlvParams};
+use super::super::{GlvParams, batch_invert_nonzero, private};
 
 /// Batched affine $\alpha(P) = P - \phi(P)$. Identity inputs map to the
 /// identity; any exceptional input (never a valid nonidentity point) falls
@@ -153,7 +153,7 @@ pub(crate) fn beta_affine_batch_from_alphas<C: GlvParams>(
 
 #[cfg(test)]
 mod tests {
-    use super::super::super::{testutil, GlvParams};
+    use super::super::super::{GlvParams, testutil};
     use super::*;
     use crate::{pallas, vesta};
 

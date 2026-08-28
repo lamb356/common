@@ -2,8 +2,8 @@ use super::multicore::{Waiter, Worker};
 use bitvec::vec::BitVec;
 use ff::{FieldBits, PrimeField, PrimeFieldBits};
 use group::{
-    prime::{PrimeCurve, PrimeCurveAffine},
     Curve,
+    prime::{PrimeCurve, PrimeCurveAffine},
 };
 use std::io;
 use std::iter;

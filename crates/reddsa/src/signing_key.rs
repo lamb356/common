@@ -15,10 +15,10 @@ use core::{
 };
 
 use crate::{
-    private::SealedScalar, Error, Randomizer, SigType, Signature, SpendAuth, VerificationKey,
+    Error, Randomizer, SigType, Signature, SpendAuth, VerificationKey, private::SealedScalar,
 };
 
-use group::{ff::PrimeField, GroupEncoding};
+use group::{GroupEncoding, ff::PrimeField};
 use rand_core::{CryptoRng, Rng};
 
 /// A RedDSA signing key.

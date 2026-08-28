@@ -43,8 +43,8 @@ use group::CurveAffine as _;
 #[cfg(feature = "multicore")]
 use maybe_rayon::prelude::*;
 
-use super::super::{affine_ladder_safe, batch_invert_nonzero, joint_digits};
 use super::super::{Decomposed, GlvParams, Table};
+use super::super::{affine_ladder_safe, batch_invert_nonzero, joint_digits};
 use super::codebook::Eis;
 use super::isogeny::alpha_affine_batch;
 
@@ -341,11 +341,7 @@ mod tests {
             let zeta = <C::Base as WithSmallOrderMulGroup<3>>::ZETA;
             let signed = |v: i64| {
                 let m = C::ScalarExt::from(v.unsigned_abs());
-                if v < 0 {
-                    -m
-                } else {
-                    m
-                }
+                if v < 0 { -m } else { m }
             };
             for (variant, &eta) in codebook.variants().iter().enumerate() {
                 let mu = signed(eta.a) + signed(eta.b) * lambda;
