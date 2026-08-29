@@ -10,6 +10,8 @@ internal implementation details are not tracked here.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-08-28
+
 ### Added
 
 - Added `CurveExt::try_multiexp_vartime`, an optional variable-time multiscalar
