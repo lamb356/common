@@ -5,7 +5,7 @@
 # Zakura Cryptography Libraries
 
 This crate is part of the
-[Zakura Cryptography Libraries](https://github.com/zakura-core/libraries),
+[Zakura Cryptography Libraries](https://github.com/zakura-core/common),
 the cryptography crates developed and maintained for
 [Zakura](https://github.com/zakura-core/zakura). The repository README lists
 every crate in the collection. A crate that began as a fork of an existing

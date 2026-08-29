@@ -10,7 +10,7 @@ docs/changelog/unreleased/<PR-number>.md and scope their entries to crates:
     ### Fixed
 
     - Fixed the consumer-visible behavior
-      ([#123](https://github.com/zakura-core/libraries/pull/123)).
+      ([#123](https://github.com/zakura-core/common/pull/123)).
 
 Release assembly folds every fragment's entries into the matching crate's
 CHANGELOG.md under a new version section and deletes the consumed fragments.

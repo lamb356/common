@@ -17,13 +17,13 @@ Changelog categories beneath it:
 ### Fixed
 
 - Fixed the consumer-visible behavior
-  ([#123](https://github.com/zakura-core/libraries/pull/123)).
+  ([#123](https://github.com/zakura-core/common/pull/123)).
 
 ## zakura-halo2-proofs
 
 ### Added
 
-- Added the new API ([#123](https://github.com/zakura-core/libraries/pull/123)).
+- Added the new API ([#123](https://github.com/zakura-core/common/pull/123)).
 ```
 
 Valid categories are `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, and

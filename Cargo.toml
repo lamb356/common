@@ -3,9 +3,9 @@
 # Each member began as a fork of a crates.io release, vendored as a plain
 # workspace member (no submodules). The members reference each other through the
 # [workspace.dependencies] table below (path + version), and Zakura consumes
-# them as `git` dependencies on this repository — no `[patch]` indirection, so
-# every edge into these crates is an explicit declaration and the crates.io
-# originals never enter the graph.
+# them from crates.io under their `zakura-*` names — no `[patch]` indirection,
+# so every edge into these crates is an explicit declaration and the upstream
+# crates.io originals never enter the graph.
 #
 # Each member is named after its zakura-branded crates.io reservation (e.g.
 # halo2_proofs → zakura-halo2-proofs, zcash_primitives → zakura-primitives;
@@ -61,7 +61,7 @@ authors = [
 edition = "2024"
 rust-version = "1.91"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/zakura-core/libraries"
+repository = "https://github.com/zakura-core/common"
 # One shared README for every published crate; cargo package copies it into
 # each crate as README.md.
 readme = "crates/README.md"
