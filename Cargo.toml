@@ -1,4 +1,4 @@
-# The Zakura Cryptography Libraries: Zakura's cryptography dependencies.
+# The Zakura Common libraries: Zakura's cryptography dependencies.
 #
 # Each member began as a fork of a crates.io release, vendored as a plain
 # workspace member (no submodules). The members reference each other through the

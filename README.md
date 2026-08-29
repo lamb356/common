@@ -1,6 +1,6 @@
 # `zakura-core/common` <img src="https://zakura.com/zakura-flower-v1.svg" alt="Zakura logo" height="32">
 
-This repository contains the Zakura Cryptography Libraries: the Rust cryptography libraries used in [Zakura](https://github.com/zakura-core/zakura) and developed here. Most of the crates began as forks of crates from [librustzcash](https://github.com/zcash/librustzcash) and other community repositories; each link below points at the exact tree the crate was forked from, and the "Record of Fork" section in each crate's `CHANGELOG.md` records the same provenance.
+This repository contains the Zakura Common libraries: the Rust cryptography libraries used in [Zakura](https://github.com/zakura-core/zakura) and developed here.
 
 ## Transactions and keys
 
