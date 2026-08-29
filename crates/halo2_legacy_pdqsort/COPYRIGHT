@@ -18,7 +18,7 @@ conditions.
 
 ==============================================================================
 
-This library is a fork of the upstream "halo2_legacy_pdqsort" crate. Upstream copyright
+This library began as a fork of the "halo2_legacy_pdqsort" crate. The original copyright
 notices are preserved below:
 
   Copyright (c) 2023 The Electric Coin Company

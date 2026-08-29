@@ -1,37 +1,37 @@
 # `zakura-core/libraries` <img src="https://zakura.com/zakura-flower-v1.svg" alt="Zakura logo" height="32">
 
-This repository contains various Rust libraries used in [Zakura](https://github.com/zakura-core/zakura), many of which are forked from [librustzcash](https://github.com/zcash/librustzcash) and other community crates.
+This repository contains the Zakura Cryptography Libraries: the Rust cryptography libraries used in [Zakura](https://github.com/zakura-core/zakura) and developed here. Most of the crates began as forks of crates from [librustzcash](https://github.com/zcash/librustzcash) and other community repositories; each link below points at the exact tree the crate was forked from, and the "Record of Fork" section in each crate's `CHANGELOG.md` records the same provenance.
 
 ## Transactions and keys
 
-- [`zakura-primitives`](crates/zcash_primitives) (a [fork](https://github.com/zcash/librustzcash/tree/main/zcash_primitives) of `zcash_primitives`)
-- [`zakura-keys`](crates/zcash_keys) (a [fork](https://github.com/zcash/librustzcash/tree/main/zcash_keys) of `zcash_keys`)
+- [`zakura-primitives`](crates/zcash_primitives) (forked from [`zcash_primitives 0.30.0`](https://github.com/zcash/librustzcash/tree/57b844dc00bf1f25254b5859b8d5faa8e5730f98/zcash_primitives))
+- [`zakura-keys`](crates/zcash_keys) (forked from [`zcash_keys 0.16.1`](https://github.com/zcash/librustzcash/tree/cb356a7def26d0bd8e1f21709951aeea137f58fa/zcash_keys))
 
 ## Shielded protocols
 
-- [`zakura-orchard`](crates/orchard) (a [fork](https://github.com/zcash/orchard) of `orchard`)
-- [`zakura-sapling-crypto`](crates/sapling-crypto) (a [fork](https://github.com/zcash/sapling-crypto) of `sapling-crypto`)
-- [`zakura-proofs`](crates/zcash_proofs) (a [fork](https://github.com/zcash/librustzcash/tree/main/zcash_proofs) of `zcash_proofs`)
+- [`zakura-orchard`](crates/orchard) (forked from [`orchard 0.15.5`](https://github.com/zcash/orchard/tree/29d1d55db62153dcaeef8ef631c8991c53ed1248))
+- [`zakura-sapling-crypto`](crates/sapling-crypto) (forked from [`sapling-crypto 0.7.0`](https://github.com/zcash/sapling-crypto/tree/8186b407b47b595a2ea4f04c73d59fdd83bd401f))
+- [`zakura-proofs`](crates/zcash_proofs) (forked from [`zcash_proofs 0.30.0`](https://github.com/zcash/librustzcash/tree/57b844dc00bf1f25254b5859b8d5faa8e5730f98/zcash_proofs))
 
 ## The halo2 proving system
 
-- [`zakura-halo2-proofs`](crates/halo2_proofs) (a [fork](https://github.com/zcash/halo2/tree/main/halo2_proofs) of `halo2_proofs`)
-- [`zakura-halo2-gadgets`](crates/halo2_gadgets) (a [fork](https://github.com/zcash/halo2/tree/main/halo2_gadgets) of `halo2_gadgets`)
-- [`zakura-halo2-poseidon`](crates/halo2_poseidon) (a [fork](https://github.com/zcash/halo2/tree/main/halo2_poseidon) of `halo2_poseidon`)
-- [`zakura-halo2-legacy-pdqsort`](crates/halo2_legacy_pdqsort) (a [fork](https://github.com/zcash/halo2_legacy_pdqsort) of `halo2_legacy_pdqsort`)
+- [`zakura-halo2-proofs`](crates/halo2_proofs) (forked from [`halo2_proofs 0.3.5`](https://github.com/zcash/halo2/tree/8e22adbdce480e5db7625df56aff9c2c8ca79f8f/halo2_proofs))
+- [`zakura-halo2-gadgets`](crates/halo2_gadgets) (forked from [`halo2_gadgets 0.5.0`](https://github.com/zcash/halo2/tree/d751768afe0d2105b349dd93f73fde7f2eade088/halo2_gadgets))
+- [`zakura-halo2-poseidon`](crates/halo2_poseidon) (forked from [`halo2_poseidon 0.1.0`](https://github.com/zcash/halo2/tree/f066ace1f234d7fe1908851ed86b1801e0b1ffea/halo2_poseidon))
+- [`zakura-halo2-legacy-pdqsort`](crates/halo2_legacy_pdqsort) (forked from [`halo2_legacy_pdqsort 0.1.0`](https://github.com/zcash/halo2_legacy_pdqsort/tree/c3b69083adcc5ab63d02ffbbc716ee19bdcdc81f))
 
 ## Curves, hashes, and signatures
 
-- [`zakura-pairing`](crates/pairing) (a [fork](https://github.com/zkcrypto/pairing) of `pairing`)
-- [`zakura-bls12-381`](crates/bls12_381) (a [fork](https://github.com/zkcrypto/bls12_381) of `bls12_381`)
-- [`zakura-jubjub`](crates/jubjub) (a [fork](https://github.com/zkcrypto/jubjub) of `jubjub`)
-- [`zakura-bellman`](crates/bellman) (a [fork](https://github.com/zkcrypto/bellman) of `bellman`)
-- [`zakura-pasta-curves`](crates/pasta_curves) (a [fork](https://github.com/zcash/pasta_curves) of `pasta_curves`)
-- [`zakura-sinsemilla`](crates/sinsemilla) (a [fork](https://github.com/zcash/sinsemilla) of `sinsemilla`)
-- [`zakura-reddsa`](crates/reddsa) (a [fork](https://github.com/ZcashFoundation/reddsa) of `reddsa`)
-- [`zakura-redjubjub`](crates/redjubjub) (a [fork](https://github.com/ZcashFoundation/redjubjub) of `redjubjub`)
+- [`zakura-pairing`](crates/pairing) (forked from [`pairing 0.23.0`](https://github.com/zkcrypto/pairing/tree/11eff5b3680a08b09c61cbe75eaa803a1e85d80b))
+- [`zakura-bls12-381`](crates/bls12_381) (forked from [`bls12_381 0.8.0`](https://github.com/zkcrypto/bls12_381/tree/7de7b9d9c509b9973b35a3241b74bbbea95e700a))
+- [`zakura-jubjub`](crates/jubjub) (forked from [`jubjub 0.10.0`](https://github.com/zkcrypto/jubjub/tree/47dfe5181ccf39166c0c479c35c0644d708f4294))
+- [`zakura-bellman`](crates/bellman) (forked from [`bellman 0.14.0`](https://github.com/zkcrypto/bellman/tree/e137775023a647716793a362ace008e058679b2a))
+- [`zakura-pasta-curves`](crates/pasta_curves) (forked from [`pasta_curves 0.5.2`](https://github.com/zcash/pasta_curves/tree/c41c5149d8e6deebada48afa5ed8fadce3ff875c))
+- [`zakura-sinsemilla`](crates/sinsemilla) (forked from [`sinsemilla 0.1.0`](https://github.com/zcash/sinsemilla/tree/206f7a960c55222a138a85447f1ddc666822cac0))
+- [`zakura-reddsa`](crates/reddsa) (forked from [`reddsa 0.5.2`](https://github.com/ZcashFoundation/reddsa/tree/3792daa95e588c1af6bd4805105bfb6ea7e9ad49))
+- [`zakura-redjubjub`](crates/redjubjub) (forked from [`redjubjub 0.8.0`](https://github.com/ZcashFoundation/redjubjub/tree/2f618e9b47617ae9d4112913391a5c3fbb8106f0))
 
-`redjubjub` is a thin wrapper over `reddsa`, so it is forked along with it.
+`zakura-redjubjub` is a thin wrapper over `zakura-reddsa`, so the two are maintained together.
 
 ## License
 

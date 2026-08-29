@@ -8,19 +8,9 @@ and this crate adheres to Rust's notion of
 the crate's public API and observable behavior from a consumer's perspective;
 internal implementation details are not tracked here.
 
-## About this fork
-
-`zakura-sinsemilla` is Zakura's fork of the upstream `sinsemilla` crate. This changelog
-begins at the fork point: upstream history up to the fork is documented in the
-upstream repository, and the fork's version lineage restarts at `1.0.0` rather
-than continuing the upstream `0.1.0` numbering.
-
-- Forked from: `sinsemilla 0.1.0`, published from
-  [zcash/sinsemilla](https://github.com/zcash/sinsemilla) at commit
-  [`206f7a96`](https://github.com/zcash/sinsemilla/commit/206f7a960c55222a138a85447f1ddc666822cac0).
-- Imported into this repository in commit `a57d014096a67071a2c6522a160c7e0dfbeff0f4`.
-
 ## [Unreleased]
+
+## [1.0.0] - 2026-08-28
 
 ### Added
 
@@ -42,12 +32,25 @@ than continuing the upstream `0.1.0` numbering.
 ### Changed
 
 - Renamed the package from `sinsemilla` to `zakura-sinsemilla`; the library
-  target keeps its upstream name, so existing `use` paths compile unchanged.
-- Replaced the upstream `pasta_curves` dependency with the Zakura fork
-  (`zakura-pasta-curves` 1.0.0), whose types appear in this crate's API.
+  target keeps its original name, so existing `use` paths compile unchanged.
+- Replaced the `pasta_curves` dependency with `zakura-pasta-curves` 1.0.0,
+  whose types appear in this crate's API.
 - Updated `group` from 0.13 to 0.14; the `pallas` point and field types this
   crate exposes now implement the `ff`/`group` 0.14 traits.
 - Sped up `HashDomain::hash_to_point` and `HashDomain::hash`; results and
   exceptional-case failure behavior are unchanged.
 - Raised the minimum supported Rust version to 1.91 and migrated the crate to
   the 2024 edition.
+
+## Record of Fork
+
+`zakura-sinsemilla` began as a fork of the `sinsemilla` crate and has been
+developed independently in this repository since. This changelog starts at the
+fork point: history up to that point is documented in the repository the code
+was forked from, and this crate's version lineage restarted at `1.0.0` rather
+than continuing the original `0.1.0` numbering.
+
+- Forked from: `sinsemilla 0.1.0`, published from
+  [zcash/sinsemilla](https://github.com/zcash/sinsemilla) at commit
+  [`206f7a96`](https://github.com/zcash/sinsemilla/commit/206f7a960c55222a138a85447f1ddc666822cac0).
+- Imported into this repository in commit `a57d014096a67071a2c6522a160c7e0dfbeff0f4`.

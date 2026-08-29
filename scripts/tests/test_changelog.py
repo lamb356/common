@@ -27,19 +27,15 @@ name = "{name}"
 SEEDED_CHANGELOG = """\
 # Changelog
 
-## About this fork
-
-`{name}` is a fork.
-
 ## [Unreleased]
+{unreleased}{versions}
+## Record of Fork
+
+`{name}` began as a fork.
 """
 
 CHANGELOG_WITH_CANDIDATES = """\
 # Changelog
-
-## About this fork
-
-`{name}` is a fork.
 
 ## [Unreleased]
 
@@ -54,7 +50,17 @@ CHANGELOG_WITH_CANDIDATES = """\
 ### Added
 
 - First candidate feature.
+
+## Record of Fork
+
+`{name}` began as a fork.
 """
+
+
+def seeded_changelog(name: str, unreleased: str = "", versions: str = "") -> str:
+    return SEEDED_CHANGELOG.format(
+        name=name, unreleased=unreleased, versions=versions
+    )
 
 
 class ChangelogTests(unittest.TestCase):
@@ -69,9 +75,7 @@ class ChangelogTests(unittest.TestCase):
             directory = self.root / "crates" / member
             directory.mkdir(parents=True)
             (directory / "Cargo.toml").write_text(MEMBER_MANIFEST.format(name=name))
-            (directory / "CHANGELOG.md").write_text(
-                SEEDED_CHANGELOG.format(name=name)
-            )
+            (directory / "CHANGELOG.md").write_text(seeded_changelog(name))
 
     def tearDown(self):
         self.temporary_directory.cleanup()
@@ -170,12 +174,12 @@ class ChangelogTests(unittest.TestCase):
     def test_seed_check_requires_fork_section(self):
         self.member_changelog("beta").write_text("# Changelog\n\n## [Unreleased]\n")
 
-        with self.assertRaisesRegex(changelog.ChangelogError, "About this fork"):
+        with self.assertRaisesRegex(changelog.ChangelogError, "Record of Fork"):
             changelog.check_seeds(self.root)
 
     def test_seed_check_requires_unreleased_section(self):
         self.member_changelog("beta").write_text(
-            "# Changelog\n\n## About this fork\n\ntext\n"
+            "# Changelog\n\n## Record of Fork\n\ntext\n"
         )
 
         with self.assertRaisesRegex(changelog.ChangelogError, "Unreleased"):
@@ -304,8 +308,9 @@ class ChangelogTests(unittest.TestCase):
 
     def test_release_merges_handwritten_unreleased_entries(self):
         self.member_changelog("beta").write_text(
-            SEEDED_CHANGELOG.format(name="zakura-beta")
-            + "\n### Changed\n\n- Hand-written change.\n"
+            seeded_changelog(
+                "zakura-beta", unreleased="\n### Changed\n\n- Hand-written change.\n"
+            )
         )
 
         writes, _ = changelog.release_plan(self.root, "v1.1.0", "2026-08-28")
@@ -329,6 +334,9 @@ class ChangelogTests(unittest.TestCase):
         alpha = writes[self.member_changelog("alpha")]
         self.assertIn("## [1.0.0] - 2026-08-28", alpha)
         self.assertNotIn("1.0.0-rc", alpha)
+        self.assertTrue(
+            alpha.endswith("## Record of Fork\n\n`zakura-alpha` began as a fork.\n")
+        )
         added = alpha.index("First candidate feature")
         early_fix = alpha.index("Second candidate fix")
         late_fix = alpha.index("Final fix")
@@ -337,8 +345,10 @@ class ChangelogTests(unittest.TestCase):
 
     def test_release_rejects_existing_version_with_new_entries(self):
         self.member_changelog("alpha").write_text(
-            SEEDED_CHANGELOG.format(name="zakura-alpha")
-            + "\n## [1.1.0] - 2026-08-01\n\n### Fixed\n\n- Old fix.\n"
+            seeded_changelog(
+                "zakura-alpha",
+                versions="\n## [1.1.0] - 2026-08-01\n\n### Fixed\n\n- Old fix.\n",
+            )
         )
         self.write_fragment(
             "123.md", "## zakura-alpha\n\n### Fixed\n\n- New fix.\n"
@@ -350,6 +360,24 @@ class ChangelogTests(unittest.TestCase):
     def test_release_rejects_empty_release(self):
         with self.assertRaisesRegex(changelog.ChangelogError, "no pending fragments"):
             changelog.release_plan(self.root, "v1.1.0", "2026-08-28")
+
+    def test_release_check_passes_after_assembly(self):
+        fragment = self.write_fragment(
+            "123.md", "## zakura-alpha\n\n### Fixed\n\n- Fixed a bug.\n"
+        )
+        writes, removals = changelog.release_plan(self.root, "v1.1.0", "2026-08-28")
+        for path, rendered in writes.items():
+            path.write_text(rendered)
+        for path in removals:
+            path.unlink()
+        self.assertEqual(removals, [fragment])
+
+        # Re-running the same release against the assembled state is the
+        # --check gate: it must succeed with nothing left to write.
+        writes, removals = changelog.release_plan(self.root, "v1.1.0", "2026-08-28")
+
+        self.assertEqual(writes, {})
+        self.assertEqual(removals, [])
 
     def test_release_rejects_invalid_tag(self):
         with self.assertRaisesRegex(changelog.ChangelogError, "invalid release tag"):

@@ -8,29 +8,32 @@ and this crate adheres to Rust's notion of
 the crate's public API and observable behavior from a consumer's perspective;
 internal implementation details are not tracked here.
 
-## About this fork
-
-`zakura-pairing` is Zakura's fork of the upstream `pairing` crate. This changelog
-begins at the fork point: upstream history up to the fork is documented in the
-upstream repository, and the fork's version lineage restarts at `1.0.0` rather
-than continuing the upstream `0.23.0` numbering.
-
-- Forked from: `pairing 0.23.0`, published from
-  [zkcrypto/pairing](https://github.com/zkcrypto/pairing) at commit
-  [`11eff5b3`](https://github.com/zkcrypto/pairing/commit/11eff5b3680a08b09c61cbe75eaa803a1e85d80b).
-- Imported into this repository in commit `295ad3fb0f7a8dd5c9ac781dd9b5a05a5eac8473`.
-- The import also ported the crate from the upstream `ff`/`group` 0.13
-  stack to `ff`/`group` 0.14.
-
 ## [Unreleased]
+
+## [1.0.0] - 2026-08-28
 
 ### Changed
 
 - Renamed the package from `pairing` to `zakura-pairing`; the library target
-  keeps its upstream name, so existing `use` paths compile unchanged.
+  keeps its original name, so existing `use` paths compile unchanged.
 - Updated `group` from 0.13 to 0.14 (moving the re-exported `ff` traits from
   0.13 to 0.14 and `rand_core` from 0.6 to 0.10); the `pub use group` re-export
   and the trait bounds on `Engine`, `PairingCurveAffine`, `MultiMillerLoop`, and
   `MillerLoopResult` now require implementations from that stack.
 - Raised the minimum supported Rust version to 1.91 and migrated the crate to
   the 2024 edition.
+
+## Record of Fork
+
+`zakura-pairing` began as a fork of the `pairing` crate and has been developed
+independently in this repository since. This changelog starts at the fork
+point: history up to that point is documented in the repository the code was
+forked from, and this crate's version lineage restarted at `1.0.0` rather than
+continuing the original `0.23.0` numbering.
+
+- Forked from: `pairing 0.23.0`, published from
+  [zkcrypto/pairing](https://github.com/zkcrypto/pairing) at commit
+  [`11eff5b3`](https://github.com/zkcrypto/pairing/commit/11eff5b3680a08b09c61cbe75eaa803a1e85d80b).
+- Imported into this repository in commit `295ad3fb0f7a8dd5c9ac781dd9b5a05a5eac8473`.
+- The import also ported the crate from the `ff`/`group` 0.13 stack it
+  was forked with to `ff`/`group` 0.14.

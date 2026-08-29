@@ -18,7 +18,7 @@ conditions.
 
 ==============================================================================
 
-This library is a fork of the upstream "pasta_curves" crate. Upstream copyright
+This library began as a fork of the "pasta_curves" crate. The original copyright
 notices are preserved below:
 
   Copyright (c) 2020-2021 The Electric Coin Company
