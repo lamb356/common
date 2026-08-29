@@ -7,3 +7,4 @@
 **/*.html
 !katex-header.html
 *-layout.png
+__pycache__/
