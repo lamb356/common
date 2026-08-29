@@ -1,6 +1,6 @@
 # `zakura-core/common` <img src="https://zakura.com/zakura-flower-v1.svg" alt="Zakura logo" height="32">
 
-This repository contains the Zakura Common libraries: the Rust cryptography libraries used in [Zakura](https://github.com/zakura-core/zakura) and made available for the Zcash ecosystem. Use this stack in your wallets or in other tools for better performance.
+This repository contains the Zakura Common libraries: the foundational Rust crates used in [Zakura](https://github.com/zakura-core/zakura) and made available for the Zcash ecosystem. Use this stack in your wallets or in other tools for better performance.
 
 ## Transactions and keys
 
