@@ -30,7 +30,7 @@ Valid categories are `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, and
 `Security`. Crate headings must be workspace package names (`zakura-*`).
 Multiple crates and categories belong in the same fragment. Write complete
 Keep a Changelog list items, including the PR link, phrased for a crates.io
-consumer of the fork.
+consumer of the crate.
 
 For an internal-only Rust or `Cargo.toml` PR, use an explicit marker and
 explain the exclusion:

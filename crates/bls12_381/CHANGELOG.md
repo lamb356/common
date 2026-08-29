@@ -8,20 +8,6 @@ and this crate adheres to Rust's notion of
 the crate's public API and observable behavior from a consumer's perspective;
 internal implementation details are not tracked here.
 
-## About this fork
-
-`zakura-bls12-381` is Zakura's fork of the upstream `bls12_381` crate. This changelog
-begins at the fork point: upstream history up to the fork is documented in the
-upstream repository, and the fork's version lineage restarts at `1.0.0` rather
-than continuing the upstream `0.8.0` numbering.
-
-- Forked from: `bls12_381 0.8.0`, published from
-  [zkcrypto/bls12_381](https://github.com/zkcrypto/bls12_381) at commit
-  [`7de7b9d9`](https://github.com/zkcrypto/bls12_381/commit/7de7b9d9c509b9973b35a3241b74bbbea95e700a).
-- Imported into this repository in commit `fecb02d3d707444b3b9d8aecc052ddbb48598397`.
-- The import also ported the crate from the upstream `ff`/`group` 0.13
-  stack to `ff`/`group` 0.14.
-
 ## [Unreleased]
 
 ### Added
@@ -31,7 +17,7 @@ than continuing the upstream `0.8.0` numbering.
 ### Changed
 
 - Renamed the package from `bls12_381` to `zakura-bls12-381`; the library target
-  keeps its upstream name, so existing `use` paths compile unchanged.
+  keeps its original name, so existing `use` paths compile unchanged.
 - Updated `ff` and `group` from 0.13 to 0.14 and `rand_core` from 0.6 to 0.10;
   random element generation now goes through the fallible `try_random`
   constructors taking `&mut R` where `R: TryRng + ?Sized` (the infallible
@@ -40,9 +26,9 @@ than continuing the upstream `0.8.0` numbering.
   `group::prime::PrimeCurveAffine` (a trait they still satisfy through that
   crate's blanket impl), and the `Curve::AffineRepr` associated type is now
   named `Curve::Affine`.
-- Replaced the upstream `pairing` dependency with the Zakura fork
-  (`zakura-pairing` 1.0.0), whose `Engine`, `MultiMillerLoop`, and
-  `PairingCurveAffine` traits are implemented by this crate's types.
+- Replaced the `pairing` dependency with `zakura-pairing` 1.0.0, whose
+  `Engine`, `MultiMillerLoop`, and `PairingCurveAffine` traits are implemented
+  by this crate's types.
 - Updated `digest` from 0.9 to 0.10; hash functions supplied to `ExpandMsgXmd`
   and `ExpandMsgXof` under the `experimental` feature must implement the
   `digest` 0.10 traits, matching `sha2`/`sha3` 0.10.
@@ -74,3 +60,18 @@ than continuing the upstream `0.8.0` numbering.
 - Fixed `ExpandMsgXof` to panic when the requested output length exceeds
   `u16::MAX` bytes, instead of silently truncating the length value that is
   hashed into the XOF input.
+
+## Record of Fork
+
+`zakura-bls12-381` began as a fork of the `bls12_381` crate and has been
+developed independently in this repository since. This changelog starts at the
+fork point: history up to that point is documented in the repository the code
+was forked from, and this crate's version lineage restarted at `1.0.0` rather
+than continuing the original `0.8.0` numbering.
+
+- Forked from: `bls12_381 0.8.0`, published from
+  [zkcrypto/bls12_381](https://github.com/zkcrypto/bls12_381) at commit
+  [`7de7b9d9`](https://github.com/zkcrypto/bls12_381/commit/7de7b9d9c509b9973b35a3241b74bbbea95e700a).
+- Imported into this repository in commit `fecb02d3d707444b3b9d8aecc052ddbb48598397`.
+- The import also ported the crate from the `ff`/`group` 0.13 stack it
+  was forked with to `ff`/`group` 0.14.

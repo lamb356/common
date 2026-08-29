@@ -679,7 +679,7 @@ impl ff::Field for Fq {
     ///
     /// This runs a **variable-time** 62-divstep safegcd inversion (the
     /// crate-internal `modinv62` module): its timing depends on the value
-    /// being inverted, which every inversion call site in this fork
+    /// being inverted, which every inversion call site in this crate
     /// tolerates. The result and the `is_some` flag are identical to the
     /// previous (data-oblivious) Fermat implementation, which remains
     /// expressible as `self.pow_vartime(&[q - 2])`.

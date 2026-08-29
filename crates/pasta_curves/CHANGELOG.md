@@ -8,18 +8,6 @@ and this crate adheres to Rust's notion of
 the crate's public API and observable behavior from a consumer's perspective;
 internal implementation details are not tracked here.
 
-## About this fork
-
-`zakura-pasta-curves` is Zakura's fork of the upstream `pasta_curves` crate. This changelog
-begins at the fork point: upstream history up to the fork is documented in the
-upstream repository, and the fork's version lineage restarts at `1.0.0` rather
-than continuing the upstream `0.5.2` numbering.
-
-- Forked from: `pasta_curves 0.5.2`, published from
-  [zcash/pasta_curves](https://github.com/zcash/pasta_curves) at commit
-  [`c41c5149`](https://github.com/zcash/pasta_curves/commit/c41c5149d8e6deebada48afa5ed8fadce3ff875c).
-- Imported into this repository in commit `16d18d2a43d0aecdfcf9e9d02469c16ebf20e50b`.
-
 ## [Unreleased]
 
 ### Added
@@ -64,7 +52,7 @@ than continuing the upstream `0.5.2` numbering.
 ### Changed
 
 - Renamed the package from `pasta_curves` to `zakura-pasta-curves`; the library
-  target keeps its upstream name, so existing `use` paths compile unchanged.
+  target keeps its original name, so existing `use` paths compile unchanged.
 - Updated `ff` and `group` from 0.13 to 0.14, with random sampling moving from
   `rand_core` 0.6 to `rand`/`rand_core` 0.10; consumers see the reorganized
   trait surfaces — affine-point methods now come from the new
@@ -75,3 +63,16 @@ than continuing the upstream `0.5.2` numbering.
   faster with no changes to the API.
 - Raised the minimum supported Rust version to 1.91 and migrated the crate to
   the 2024 edition.
+
+## Record of Fork
+
+`zakura-pasta-curves` began as a fork of the `pasta_curves` crate and has been
+developed independently in this repository since. This changelog starts at the
+fork point: history up to that point is documented in the repository the code
+was forked from, and this crate's version lineage restarted at `1.0.0` rather
+than continuing the original `0.5.2` numbering.
+
+- Forked from: `pasta_curves 0.5.2`, published from
+  [zcash/pasta_curves](https://github.com/zcash/pasta_curves) at commit
+  [`c41c5149`](https://github.com/zcash/pasta_curves/commit/c41c5149d8e6deebada48afa5ed8fadce3ff875c).
+- Imported into this repository in commit `16d18d2a43d0aecdfcf9e9d02469c16ebf20e50b`.

@@ -1,7 +1,7 @@
-# Zakura's forked cryptography dependencies.
+# The Zakura Cryptography Libraries: Zakura's cryptography dependencies.
 #
-# Each member is a fork of a crates.io release, vendored as a plain workspace
-# member (no submodules). The members reference each other through the
+# Each member began as a fork of a crates.io release, vendored as a plain
+# workspace member (no submodules). The members reference each other through the
 # [workspace.dependencies] table below (path + version), and Zakura consumes
 # them as `git` dependencies on this repository — no `[patch]` indirection, so
 # every edge into these crates is an explicit declaration and the crates.io
@@ -18,7 +18,7 @@
 # Zakura's dependency graph that (transitively) depends on it. The closure must
 # stay closed: if a future dependency of Zakura pulls any of these names from
 # crates.io, that crate must either be added here or have its edge rewritten,
-# or a registry copy will silently coexist with the forks.
+# or a registry copy will silently coexist with the workspace crates.
 #
 # - pasta_curves, halo2_proofs, halo2_gadgets, halo2_poseidon,
 #   halo2_legacy_pdqsort, orchard: the proving stack itself.

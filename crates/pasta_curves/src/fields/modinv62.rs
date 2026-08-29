@@ -36,7 +36,7 @@
 //! trailing-zero counts, divstep branches, batch count, and active limb length
 //! all depend on the input. It must only reach values whose timing is
 //! acceptable to leak. See the crate changelog entry for the posture of this
-//! fork's inversion call sites.
+//! crate's inversion call sites.
 //!
 //! # References
 //!

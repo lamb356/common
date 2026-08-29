@@ -31,7 +31,7 @@ from pathlib import Path
 
 FRAGMENT_DIRECTORY = "docs/changelog/unreleased"
 NO_CHANGELOG_MARKER = "<!-- changelog: none -->"
-FORK_SEED_HEADING = "## About this fork"
+FORK_SEED_HEADING = "## Record of Fork"
 STANDARD_CATEGORIES = (
     "Added",
     "Changed",
@@ -283,12 +283,15 @@ def promote_release_candidates(
     cursor = 0
     candidate_prefix = f"{stable_version}-rc"
 
-    for index, match in enumerate(matches):
-        section_end = (
-            matches[index + 1].start() if index + 1 < len(matches) else len(suffix)
-        )
+    for match in matches:
         version = match.group(1)
         if version.startswith(candidate_prefix) and version != candidate_prefix:
+            # A section ends at the next ## heading of any kind: the next
+            # version section or the trailing Record of Fork section.
+            next_heading = re.search(r"^## ", suffix[match.end() :], re.MULTILINE)
+            section_end = (
+                match.end() + next_heading.start() if next_heading else len(suffix)
+            )
             body = suffix[match.end() : section_end].strip()
             candidate_sections.append(
                 parse_category_body(body, path, f"release {version}")

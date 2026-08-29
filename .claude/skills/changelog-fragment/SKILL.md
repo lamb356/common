@@ -46,7 +46,7 @@ concurrent PRs cannot conflict. The canonical policy is
 
 ## Writing entries
 
-- Write for a crates.io consumer of the fork: the observable effect, not the
+- Write for a crates.io consumer of the crate: the observable effect, not the
   implementation. Start each item with a verb and link the PR.
 - The per-crate changelogs track public API and observable behavior only.
   A performance change gets one line about the visible effect.

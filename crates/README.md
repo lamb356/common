@@ -6,6 +6,8 @@
 
 This crate is part of the
 [Zakura Cryptography Libraries](https://github.com/zakura-core/libraries),
-Zakura's forks of the Zcash ecosystem's cryptography crates. The repository
-README lists every crate in the collection, and each crate's `CHANGELOG.md`
-records the upstream crate it was forked from and how the fork differs.
+the cryptography crates developed and maintained for
+[Zakura](https://github.com/zakura-core/zakura). The repository README lists
+every crate in the collection. A crate that began as a fork of an existing
+crate records the exact code it was forked from in the "Record of Fork"
+section at the end of its `CHANGELOG.md`.
