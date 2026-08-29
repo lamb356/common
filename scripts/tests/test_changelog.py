@@ -361,6 +361,24 @@ class ChangelogTests(unittest.TestCase):
         with self.assertRaisesRegex(changelog.ChangelogError, "no pending fragments"):
             changelog.release_plan(self.root, "v1.1.0", "2026-08-28")
 
+    def test_release_check_passes_after_assembly(self):
+        fragment = self.write_fragment(
+            "123.md", "## zakura-alpha\n\n### Fixed\n\n- Fixed a bug.\n"
+        )
+        writes, removals = changelog.release_plan(self.root, "v1.1.0", "2026-08-28")
+        for path, rendered in writes.items():
+            path.write_text(rendered)
+        for path in removals:
+            path.unlink()
+        self.assertEqual(removals, [fragment])
+
+        # Re-running the same release against the assembled state is the
+        # --check gate: it must succeed with nothing left to write.
+        writes, removals = changelog.release_plan(self.root, "v1.1.0", "2026-08-28")
+
+        self.assertEqual(writes, {})
+        self.assertEqual(removals, [])
+
     def test_release_rejects_invalid_tag(self):
         with self.assertRaisesRegex(changelog.ChangelogError, "invalid release tag"):
             changelog.release_plan(self.root, "1.1.0", "2026-08-28")

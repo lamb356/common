@@ -385,6 +385,7 @@ def release_plan(
 
     writes: dict[Path, str] = {}
     assembled_any = False
+    already_released = False
 
     for crate, path in sorted(changelogs.items()):
         original = path.read_text()
@@ -413,6 +414,7 @@ def release_plan(
                     f"{path}: release {version} already exists but new entries "
                     "remain; bump the release version first"
                 )
+            already_released = True
             continue
         if not body:
             # Nothing to record for this crate in this release.
@@ -423,7 +425,7 @@ def release_plan(
         if rendered != original:
             writes[path] = rendered
 
-    if not assembled_any and not fragments:
+    if not assembled_any and not already_released and not fragments:
         raise ChangelogError(
             f"release {version}: no pending fragments and no unreleased entries"
         )
