@@ -1,4 +1,4 @@
-# Lychee link checker configuration for Zakura libraries.
+# Lychee link checker configuration for the Zakura Common libraries.
 # https://github.com/lycheeverse/lychee
 
 exclude = [
@@ -31,7 +31,7 @@ exclude_loopback = true
 cache = true
 max_cache_age = "7d"
 max_concurrency = 8
-user_agent = "lychee/0.24 (Zakura libraries link checker; https://github.com/zakura-core/libraries)"
+user_agent = "lychee/0.24 (Zakura Common link checker; https://github.com/zakura-core/common)"
 include_mail = false
 max_retries = 3
 retry_wait_time = 10

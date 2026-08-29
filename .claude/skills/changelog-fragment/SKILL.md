@@ -27,7 +27,7 @@ concurrent PRs cannot conflict. The canonical policy is
    ### Fixed
 
    - Fixed the consumer-visible behavior
-     ([#123](https://github.com/zakura-core/libraries/pull/123)).
+     ([#123](https://github.com/zakura-core/common/pull/123)).
    ```
 
    Valid crate headings are the 17 workspace package names (`zakura-*`).

@@ -79,7 +79,7 @@ workspace members, and keeps the provenance records intact.
 - Write for a crates.io consumer of the crate: describe the observable effect,
   not the implementation. Start each item with a verb and link the PR, for
   example
-  `- Fixed X so that Y ([#123](https://github.com/zakura-core/libraries/pull/123)).`
+  `- Fixed X so that Y ([#123](https://github.com/zakura-core/common/pull/123)).`
 - Performance changes worth a consumer's attention get one line describing the
   visible effect, not the technique.
 - Security entries must not describe an undisclosed or unfixed vulnerability;

@@ -6,7 +6,7 @@ description: >-
   preparing a release PR, or publishing the crates to crates.io.
 ---
 
-# Release the zakura libraries
+# Release the Zakura Common libraries
 
 The 17 crates version in lockstep from `[workspace.package]` in the root
 `Cargo.toml`. Changelog policy is canonical in `docs/changelog/guidelines.md`;
