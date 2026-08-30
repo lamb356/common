@@ -60,6 +60,11 @@ macro_rules! impl_add_vartime {
         fn batch_normalize_vartime(p: &[Self], q: &mut [Self::AffineExt]) {
             $name::batch_normalize_vartime(p, q)
         }
+
+        #[cfg(feature = "glv")]
+        fn double_vartime(&self) -> Self {
+            $name::double_vartime(self)
+        }
     };
     (native, $name:ident) => {};
 }
@@ -213,7 +218,7 @@ macro_rules! new_curve_impl {
                 let s2 = rhs.y * z1z1 * self.z;
                 if self.x.eq_vartime(&u2) {
                     return if self.y.eq_vartime(&s2) {
-                        self.double()
+                        self.double_vartime()
                     } else {
                         $name::identity()
                     };
@@ -256,7 +261,7 @@ macro_rules! new_curve_impl {
                 let s2 = rhs.y * z1z1 * self.z;
                 if u1.eq_vartime(&u2) {
                     return if s1.eq_vartime(&s2) {
-                        self.double()
+                        self.double_vartime()
                     } else {
                         $name::identity()
                     };
@@ -275,6 +280,41 @@ macro_rules! new_curve_impl {
                 let z3 = z3 * h;
 
                 $name { x: x3, y: y3, z: z3 }
+            }
+
+            /// Variable-time doubling: the same Jacobian formulas as
+            /// `double`, without the constant-time identity selection. The
+            /// identity input yields `z3 = 0`, which every consumer already
+            /// treats as the identity. Only for paths that are already
+            /// variable-time.
+            #[cfg(feature = "glv")]
+            #[allow(dead_code)] // used only for the curves with GLV parameters
+            pub(crate) fn double_vartime(&self) -> $name {
+                // http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-0.html#doubling-dbl-2009-l
+                //
+                // There are no points of order 2.
+                let a = Field::square(&self.x);
+                let b = Field::square(&self.y);
+                let c = Field::square(&b);
+                let d = self.x + b;
+                let d = Field::square(&d);
+                let d = d - a - c;
+                let d = d + d;
+                let e = a + a + a;
+                let f = Field::square(&e);
+                let z3 = self.z * self.y;
+                let z3 = z3 + z3;
+                let x3 = f - (d + d);
+                let c = c + c;
+                let c = c + c;
+                let c = c + c;
+                let y3 = e * (d - x3) - c;
+
+                $name {
+                    x: x3,
+                    y: y3,
+                    z: z3,
+                }
             }
         }
 
@@ -1593,6 +1633,84 @@ mod batch_normalize_two_lane_tests {
                 let mut affine_vartime = vec![EpAffine::identity(); n];
                 Ep::batch_normalize_vartime(&points, &mut affine_vartime);
                 assert_eq!(affine, affine_vartime, "n = {}", n);
+            }
+        }
+    }
+}
+
+#[cfg(all(test, feature = "glv"))]
+mod vartime_curve_op_tests {
+    use group::{Curve, Group};
+
+    use super::*;
+    use crate::arithmetic::CurveExt;
+
+    fn cases_ep() -> [Ep; 5] {
+        [
+            Ep::identity(),
+            Ep::generator(),
+            Ep::generator() * Fq::from(3),
+            -(Ep::generator() * Fq::from(3)),
+            Ep::generator() * Fq::from(0xdeadbeefu64),
+        ]
+    }
+
+    fn cases_eq() -> [Eq; 5] {
+        [
+            Eq::identity(),
+            Eq::generator(),
+            Eq::generator() * Fp::from(3),
+            -(Eq::generator() * Fp::from(3)),
+            Eq::generator() * Fp::from(0xdeadbeefu64),
+        ]
+    }
+
+    #[test]
+    fn double_vartime_matches_double() {
+        for p in cases_ep() {
+            let mut ct = p;
+            let mut vt = p;
+            for _ in 0..4 {
+                ct = ct.double();
+                vt = CurveExt::double_vartime(&vt);
+                assert_eq!(ct.to_affine(), vt.to_affine());
+            }
+        }
+        for p in cases_eq() {
+            let mut ct = p;
+            let mut vt = p;
+            for _ in 0..4 {
+                ct = ct.double();
+                vt = CurveExt::double_vartime(&vt);
+                assert_eq!(ct.to_affine(), vt.to_affine());
+            }
+        }
+    }
+
+    #[test]
+    fn add_vartime_matches_add() {
+        for a in cases_ep() {
+            for b in cases_ep() {
+                assert_eq!(
+                    (a + b).to_affine(),
+                    CurveExt::add_vartime(&a, &b).to_affine()
+                );
+                assert_eq!(
+                    (a + b).to_affine(),
+                    CurveExt::add_mixed_vartime(&a, &b.to_affine()).to_affine()
+                );
+            }
+        }
+        for a in cases_eq() {
+            for b in cases_eq() {
+                assert_eq!(
+                    (a + b).to_affine(),
+                    CurveExt::add_vartime(&a, &b).to_affine()
+                );
+                assert_eq!(
+                    (a + b).to_affine(),
+                    CurveExt::add_mixed_vartime(&a, &b.to_affine()).to_affine()
+                );
             }
         }
     }

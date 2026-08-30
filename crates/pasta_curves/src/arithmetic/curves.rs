@@ -137,6 +137,14 @@ pub trait CurveExt:
         Self::batch_normalize(p, q);
     }
 
+    /// Point doubling that may run in variable time with respect to the
+    /// input (the identity is not re-canonicalized with a constant-time
+    /// select). **The point must be public.** The default implementation
+    /// falls back to the constant-time doubling.
+    fn double_vartime(&self) -> Self {
+        self.double()
+    }
+
     /// Attempts an optimized variable-time multiscalar multiplication.
     ///
     /// Implementations own the backend and tuning decisions. Implementations

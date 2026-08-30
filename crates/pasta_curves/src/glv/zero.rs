@@ -500,7 +500,7 @@ impl<C: GlvParams> PreparedZeroMsm<C> {
             let mut tail = tail?;
             if !bool::from(tail.is_identity()) {
                 for _ in 0..window_bits * main_windows {
-                    tail = tail.double();
+                    tail = crate::arithmetic::CurveExt::double_vartime(&tail);
                 }
             }
             return Some(windows_part + tail + extras_part?);
@@ -509,12 +509,12 @@ impl<C: GlvParams> PreparedZeroMsm<C> {
         let mut acc = self.tail_sum(&recoded.residuals, num_threads)?;
         if !bool::from(acc.is_identity()) {
             for _ in 0..window_bits * (main_windows - active) {
-                acc = acc.double();
+                acc = crate::arithmetic::CurveExt::double_vartime(&acc);
             }
         }
         for window in (0..active).rev() {
             for _ in 0..window_bits {
-                acc = acc.double();
+                acc = crate::arithmetic::CurveExt::double_vartime(&acc);
             }
             acc =
                 crate::arithmetic::CurveExt::add_vartime(&acc, &self.window_sum(recoded, window)?);
@@ -884,7 +884,7 @@ fn integrate_coefficients<C: GlvParams>(
     if additions < BATCH_INTEGRATE_MIN_ADDS {
         let mut acc = C::identity();
         for ops in program.iter().rev() {
-            acc = acc.double();
+            acc = crate::arithmetic::CurveExt::double_vartime(&acc);
             for op in ops {
                 if let Some(point) = &buckets[usize::from(op.bucket)] {
                     let x = match op.rotation {
@@ -930,7 +930,7 @@ fn integrate_coefficients<C: GlvParams>(
     let position_sums = reduce_affine_buckets(points, offsets)?;
     let mut acc = C::identity();
     for sum in position_sums.iter().rev() {
-        acc = acc.double();
+        acc = crate::arithmetic::CurveExt::double_vartime(&acc);
         if let Some(point) = sum {
             acc = crate::arithmetic::CurveExt::add_mixed_vartime(
                 &acc,

@@ -3,7 +3,7 @@
 
 pub use ff::Field;
 use group::{
-    Curve as _, Group as _, GroupOpsOwned, ScalarMulOwned,
+    Group as _, GroupOpsOwned, ScalarMulOwned,
     ff::{BatchInvert, PrimeField},
 };
 use maybe_rayon::prelude::*;
@@ -309,7 +309,7 @@ pub fn small_multiexp<C: CurveAffine>(coeffs: &[C::Scalar], bases: &[C]) -> C::C
     for byte_idx in (0..32).rev() {
         // for bit idx
         for bit_idx in (0..8).rev() {
-            acc = acc.double();
+            acc = acc.double_vartime();
             // for each coeff
             for coeff_idx in 0..coeffs.len() {
                 let byte = coeffs[coeff_idx].as_ref()[byte_idx];
@@ -377,7 +377,7 @@ pub(crate) fn linear_combination_batch_vartime<C: CurveAffine>(
                     if w != windows - 1 {
                         for acc in out.iter_mut() {
                             for _ in 0..LINEAR_COMBINATION_WINDOW_BITS {
-                                *acc = acc.double();
+                                *acc = acc.double_vartime();
                             }
                         }
                     }
@@ -435,7 +435,7 @@ pub fn best_multiexp<C: CurveAffine>(coeffs: &[C::Scalar], bases: &[C]) -> C::Cu
             .rev()
             .map(|(i, buckets)| {
                 let mut acc = buckets.sum(&coeffs, bases, i);
-                (0..c * i).for_each(|_| acc = acc.double());
+                (0..c * i).for_each(|_| acc = acc.double_vartime());
                 acc
             })
             .the_best_reduce(C::Curve::identity, |a, b| a + b)
@@ -448,7 +448,7 @@ pub fn best_multiexp<C: CurveAffine>(coeffs: &[C::Scalar], bases: &[C]) -> C::Cu
             .map(|(i, buckets)| buckets.sum(&coeffs, bases, i))
             .fold(C::Curve::identity(), |mut sum, bucket| {
                 // restore original evaluation point
-                (0..c).for_each(|_| sum = sum.double());
+                (0..c).for_each(|_| sum = sum.double_vartime());
                 sum + bucket
             })
     }

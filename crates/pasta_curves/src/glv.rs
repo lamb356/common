@@ -1187,7 +1187,7 @@ fn strauss_multiexp<C: GlvParams>(scalars: &[C::ScalarExt], bases: &[C::AffineEx
     let mut acc = C::identity();
     for column in (0..columns).rev() {
         if column + 1 < columns {
-            acc = acc.double();
+            acc = crate::arithmetic::CurveExt::double_vartime(&acc);
         }
         for (scalar, table) in decomposed.iter().zip(&tables) {
             let code = scalar.digits[column];
@@ -1792,7 +1792,7 @@ fn multiexp_serial<C: GlvParams>(
     for window in (0..window_count).rev() {
         if window + 1 != window_count {
             for _ in 0..window_bits {
-                acc = acc.double();
+                acc = crate::arithmetic::CurveExt::double_vartime(&acc);
             }
         }
 
@@ -1832,13 +1832,13 @@ fn paired_windows_sum<C: GlvParams>(
                 let mut low = low?;
                 let mut high = high?;
                 for _ in 0..window_bits {
-                    high = high.double();
+                    high = crate::arithmetic::CurveExt::double_vartime(&high);
                 }
                 low += high;
                 low
             };
             for _ in 0..window_bits * start {
-                sum = sum.double();
+                sum = crate::arithmetic::CurveExt::double_vartime(&sum);
             }
             Some(sum)
         })
@@ -1863,7 +1863,7 @@ fn parallel_windows_sum<C: GlvParams>(
     for (window, sum) in window_sums.into_iter().enumerate().rev() {
         if window + 1 != windows {
             for _ in 0..window_bits {
-                acc = acc.double();
+                acc = crate::arithmetic::CurveExt::double_vartime(&acc);
             }
         }
         acc = crate::arithmetic::CurveExt::add_vartime(&acc, &sum);
@@ -2127,7 +2127,7 @@ impl<C: GlvParams> Table<C> {
             // `acc` is still the identity on the first iteration; skip the
             // wasted doubling.
             if i + 1 < k.len {
-                acc = acc.double();
+                acc = crate::arithmetic::CurveExt::double_vartime(&acc);
             }
             if code != 0 {
                 acc = crate::arithmetic::CurveExt::add_mixed_vartime(&acc, &self.digit_point(code));
