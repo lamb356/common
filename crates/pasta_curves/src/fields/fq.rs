@@ -304,6 +304,13 @@ impl Fq {
         Fq::mul(&d0, &R2).add(&Fq::mul(&d1, &R3))
     }
 
+    /// Variable-time equality on the canonical Montgomery limbs. Only for
+    /// paths that are already variable-time (e.g. the vartime multiexp).
+    #[inline(always)]
+    pub(crate) fn eq_vartime(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+
     /// Converts from an integer represented in little endian
     /// into its (congruent) `Fq` representation.
     pub const fn from_raw(val: [u64; 4]) -> Self {
@@ -391,10 +398,18 @@ impl Fq {
             Fq(super::aarch64_asm::mul(&self.0, &rhs.0, &MODULUS.0, INV))
         }
 
-        #[cfg(not(all(
-            feature = "aarch64-asm",
-            target_arch = "aarch64",
-            target_vendor = "apple"
+        #[cfg(all(feature = "x86_64-asm", target_arch = "x86_64"))]
+        {
+            Fq(super::x86_64_asm::mul(&self.0, &rhs.0, &MODULUS.0, INV))
+        }
+
+        #[cfg(not(any(
+            all(
+                feature = "aarch64-asm",
+                target_arch = "aarch64",
+                target_vendor = "apple"
+            ),
+            all(feature = "x86_64-asm", target_arch = "x86_64")
         )))]
         {
             self.mul(rhs)
@@ -412,10 +427,18 @@ impl Fq {
             Fq(super::aarch64_asm::square(&self.0, &MODULUS.0, INV))
         }
 
-        #[cfg(not(all(
-            feature = "aarch64-asm",
-            target_arch = "aarch64",
-            target_vendor = "apple"
+        #[cfg(all(feature = "x86_64-asm", target_arch = "x86_64"))]
+        {
+            Fq(super::x86_64_asm::square(&self.0, &MODULUS.0, INV))
+        }
+
+        #[cfg(not(any(
+            all(
+                feature = "aarch64-asm",
+                target_arch = "aarch64",
+                target_vendor = "apple"
+            ),
+            all(feature = "x86_64-asm", target_arch = "x86_64")
         )))]
         {
             self.square()
@@ -440,10 +463,20 @@ impl Fq {
             ))
         }
 
-        #[cfg(not(all(
-            feature = "aarch64-asm",
-            target_arch = "aarch64",
-            target_vendor = "apple"
+        #[cfg(all(feature = "x86_64-asm", target_arch = "x86_64"))]
+        {
+            Fq(super::x86_64_asm::sqr_n_mul(
+                &self.0, n as usize, &by.0, &MODULUS.0, INV,
+            ))
+        }
+
+        #[cfg(not(any(
+            all(
+                feature = "aarch64-asm",
+                target_arch = "aarch64",
+                target_vendor = "apple"
+            ),
+            all(feature = "x86_64-asm", target_arch = "x86_64")
         )))]
         {
             // Leave the accumulator unreduced between squarings. The closing
@@ -476,10 +509,20 @@ impl Fq {
             }
         }
 
-        #[cfg(not(all(
-            feature = "aarch64-asm",
-            target_arch = "aarch64",
-            target_vendor = "apple"
+        #[cfg(all(feature = "x86_64-asm", target_arch = "x86_64"))]
+        {
+            Fq(super::x86_64_asm::sqr_n(
+                &self.0, n as usize, &MODULUS.0, INV,
+            ))
+        }
+
+        #[cfg(not(any(
+            all(
+                feature = "aarch64-asm",
+                target_arch = "aarch64",
+                target_vendor = "apple"
+            ),
+            all(feature = "x86_64-asm", target_arch = "x86_64")
         )))]
         {
             Fq(portable::canonicalize(

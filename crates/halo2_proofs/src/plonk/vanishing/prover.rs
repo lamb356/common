@@ -112,10 +112,20 @@ impl<C: CurveAffine> CommittedRandomPolynomial<C> {
         mut rng: R,
         transcript: &mut T,
     ) -> Result<ConstructedQuotient<C>, Error> {
+        let stage_timing = std::env::var_os("HALO2_STAGE_TIMING").is_some();
+        let mut stage_start = std::time::Instant::now();
+        let mut stage = move |name: &str| {
+            if stage_timing {
+                eprintln!("    quotient.{name}: {:?}", stage_start.elapsed());
+                stage_start = std::time::Instant::now();
+            }
+        };
+
         // Fold the constraint expressions into the quotient numerator using
         // the y challenge, then evaluate the numerator.
         let quotient_numerator = poly::Ast::distribute_powers(expressions, *y);
         let quotient_numerator = evaluator.evaluate(&quotient_numerator, domain);
+        stage("evaluate");
 
         // Move the numerator to coefficient form, divide by
         // t(X) = X^{params.n} - 1 using its sparse block inverse, and construct
@@ -148,6 +158,7 @@ impl<C: CurveAffine> CommittedRandomPolynomial<C> {
         let mut h_commitments = vec![C::identity(); h_commitments_projective.len()];
         C::Curve::batch_normalize(&h_commitments_projective, &mut h_commitments);
         let h_commitments = h_commitments;
+        stage("commit");
 
         // Hash each h(X) piece
         for c in h_commitments.iter() {

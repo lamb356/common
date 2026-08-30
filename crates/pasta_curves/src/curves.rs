@@ -44,6 +44,27 @@ macro_rules! impl_raw_coordinates {
 }
 
 #[cfg(feature = "alloc")]
+macro_rules! impl_add_vartime {
+    (glv, $name:ident) => {
+        #[cfg(feature = "glv")]
+        fn add_vartime(&self, rhs: &Self) -> Self {
+            $name::add_vartime(self, rhs)
+        }
+
+        #[cfg(feature = "glv")]
+        fn add_mixed_vartime(&self, rhs: &Self::AffineExt) -> Self {
+            $name::add_mixed_vartime(self, rhs)
+        }
+
+        #[cfg(feature = "glv")]
+        fn batch_normalize_vartime(p: &[Self], q: &mut [Self::AffineExt]) {
+            $name::batch_normalize_vartime(p, q)
+        }
+    };
+    (native, $name:ident) => {};
+}
+
+#[cfg(feature = "alloc")]
 macro_rules! impl_batch_mul_same_scalar_vartime {
     (glv, $name:ident) => {
         #[cfg(feature = "glv")]
@@ -128,6 +149,132 @@ macro_rules! new_curve_impl {
 
             const fn curve_constant_b() -> $base {
                 $base::from_raw($b_raw)
+            }
+
+            /// Batch Jacobian-to-affine conversion with identity points
+            /// branched on raw limb equality instead of constant-time
+            /// selects. Only for paths whose points are public and already
+            /// variable-time.
+            #[cfg(feature = "glv")]
+            #[allow(dead_code)] // used only for the curves with GLV parameters
+            pub(crate) fn batch_normalize_vartime(p: &[$name], q: &mut [$name_affine]) {
+                assert_eq!(p.len(), q.len());
+
+                let zero = $base::zero();
+                // Two-lane Montgomery batch inversion, as in the
+                // constant-time `batch_normalize`, but skipping identity
+                // points with branches.
+                let mut acc = [$base::one(); 2];
+                for (i, (p, q)) in p.iter().zip(q.iter_mut()).enumerate() {
+                    q.x = acc[i & 1];
+                    if !p.z.eq_vartime(&zero) {
+                        acc[i & 1] *= p.z;
+                    }
+                }
+
+                let inverse = (acc[0] * acc[1]).invert().unwrap();
+                let mut acc = [inverse * acc[1], inverse * acc[0]];
+
+                for (i, (p, q)) in p.iter().zip(q.iter_mut()).enumerate().rev() {
+                    let lane = i & 1;
+                    if p.z.eq_vartime(&zero) {
+                        *q = $name_affine::identity();
+                        continue;
+                    }
+
+                    let tmp = q.x * acc[lane];
+                    acc[lane] *= p.z;
+
+                    let tmp2 = Field::square(&tmp);
+                    let tmp3 = tmp2 * tmp;
+
+                    q.x = p.x * tmp2;
+                    q.y = p.y * tmp3;
+                }
+            }
+
+            /// Variable-time mixed addition: the same Jacobian formulas as
+            /// `Add<&$name_affine>`, but with the identity and exceptional
+            /// cases branched on raw limb equality instead of constant-time
+            /// comparisons. Only for paths that are already variable-time
+            /// (e.g. the vartime multiexp accumulators).
+            #[cfg(feature = "glv")]
+            #[allow(dead_code)] // used only for the curves with GLV parameters
+            pub(crate) fn add_mixed_vartime(&self, rhs: &$name_affine) -> $name {
+                let zero = $base::zero();
+                if self.z.eq_vartime(&zero) {
+                    return rhs.to_curve();
+                }
+                if rhs.x.eq_vartime(&zero) && rhs.y.eq_vartime(&zero) {
+                    return *self;
+                }
+                let z1z1 = Field::square(&self.z);
+                let u2 = rhs.x * z1z1;
+                let s2 = rhs.y * z1z1 * self.z;
+                if self.x.eq_vartime(&u2) {
+                    return if self.y.eq_vartime(&s2) {
+                        self.double()
+                    } else {
+                        $name::identity()
+                    };
+                }
+                let h = u2 - self.x;
+                let hh = Field::square(&h);
+                let i = hh + hh;
+                let i = i + i;
+                let j = h * i;
+                let r = s2 - self.y;
+                let r = r + r;
+                let v = self.x * i;
+                let x3 = Field::square(&r) - j - v - v;
+                let j = self.y * j;
+                let j = j + j;
+                let y3 = r * (v - x3) - j;
+                let z3 = Field::square(&(self.z + h)) - z1z1 - hh;
+
+                $name { x: x3, y: y3, z: z3 }
+            }
+
+            /// Variable-time projective addition: the same Jacobian formulas
+            /// as `Add<&$name>`, with the special cases branched on raw limb
+            /// equality. Only for paths that are already variable-time.
+            #[cfg(feature = "glv")]
+            #[allow(dead_code)] // used only for the curves with GLV parameters
+            pub(crate) fn add_vartime(&self, rhs: &$name) -> $name {
+                let zero = $base::zero();
+                if self.z.eq_vartime(&zero) {
+                    return *rhs;
+                }
+                if rhs.z.eq_vartime(&zero) {
+                    return *self;
+                }
+                let z1z1 = Field::square(&self.z);
+                let z2z2 = Field::square(&rhs.z);
+                let u1 = self.x * z2z2;
+                let u2 = rhs.x * z1z1;
+                let s1 = self.y * z2z2 * rhs.z;
+                let s2 = rhs.y * z1z1 * self.z;
+                if u1.eq_vartime(&u2) {
+                    return if s1.eq_vartime(&s2) {
+                        self.double()
+                    } else {
+                        $name::identity()
+                    };
+                }
+                let h = u2 - u1;
+                let i = Field::square(&(h + h));
+                let j = h * i;
+                let r = s2 - s1;
+                let r = r + r;
+                let v = u1 * i;
+                let x3 = Field::square(&r) - j - v - v;
+                let s1 = s1 * j;
+                let s1 = s1 + s1;
+                let y3 = r * (v - x3) - s1;
+                let z3 = Field::square(&(self.z + rhs.z)) - z1z1 - z2z2;
+                let z3 = z3 * h;
+
+                $name { x: x3, y: y3, z: z3 }
             }
         }
 
@@ -272,6 +419,7 @@ macro_rules! new_curve_impl {
                     | self.z.is_zero()
             }
 
+            impl_add_vartime!($glv_backend, $name);
             impl_batch_mul_same_scalar_vartime!($glv_backend, $name);
             impl_multiexp_vartime!($glv_backend, $name);
             impl_prepare_zero_check!($glv_backend, $name);
@@ -1438,6 +1586,13 @@ mod batch_normalize_two_lane_tests {
             Ep::batch_normalize(&points, &mut affine);
             for (i, (p, a)) in points.iter().zip(&affine).enumerate() {
                 assert_eq!(p.to_affine(), *a, "n = {}, index {}", n, i);
+            }
+
+            #[cfg(feature = "glv")]
+            {
+                let mut affine_vartime = vec![EpAffine::identity(); n];
+                Ep::batch_normalize_vartime(&points, &mut affine_vartime);
+                assert_eq!(affine, affine_vartime, "n = {}", n);
             }
         }
     }

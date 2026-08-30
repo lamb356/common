@@ -516,7 +516,8 @@ impl<C: GlvParams> PreparedZeroMsm<C> {
             for _ in 0..window_bits {
                 acc = acc.double();
             }
-            acc += self.window_sum(recoded, window)?;
+            acc =
+                crate::arithmetic::CurveExt::add_vartime(&acc, &self.window_sum(recoded, window)?);
         }
         Some(acc + self.extras_sum(extras)?)
     }
@@ -892,7 +893,10 @@ fn integrate_coefficients<C: GlvParams>(
                         _ => -point.x - point.x * zeta,
                     };
                     let y = if op.negate { -point.y } else { point.y };
-                    acc += C::affine_unchecked(x, y, private::CrateToken(()));
+                    acc = crate::arithmetic::CurveExt::add_mixed_vartime(
+                        &acc,
+                        &C::affine_unchecked(x, y, private::CrateToken(())),
+                    );
                 }
             }
         }
@@ -928,7 +932,10 @@ fn integrate_coefficients<C: GlvParams>(
     for sum in position_sums.iter().rev() {
         acc = acc.double();
         if let Some(point) = sum {
-            acc += C::affine_unchecked(point.x, point.y, private::CrateToken(()));
+            acc = crate::arithmetic::CurveExt::add_mixed_vartime(
+                &acc,
+                &C::affine_unchecked(point.x, point.y, private::CrateToken(())),
+            );
         }
     }
     Some(acc)

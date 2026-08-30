@@ -3,13 +3,102 @@
 
 pub use ff::Field;
 use group::{
-    Group as _, GroupOpsOwned, ScalarMulOwned,
+    Curve as _, Group as _, GroupOpsOwned, ScalarMulOwned,
     ff::{BatchInvert, PrimeField},
 };
 use maybe_rayon::prelude::*;
 pub use pasta_curves::arithmetic::*;
 
 use crate::multicore::{self, TheBestReduce};
+
+// Batched slice arithmetic, dispatching to the vectorized Pasta
+// implementations when the field type matches. The unsafe code is contained
+// to slice casts whose element type is verified by `TypeId` equality.
+pub(crate) mod batch {
+    use core::any::TypeId;
+
+    use group::ff::Field;
+    use pasta_curves::{pallas, vesta};
+
+    #[allow(unsafe_code)]
+    fn downcast_mut<F: Field, T: 'static>(s: &mut [F]) -> Option<&mut [T]> {
+        (TypeId::of::<F>() == TypeId::of::<T>()).then(|| {
+            // SAFETY: `TypeId` equality guarantees `F` and `T` are the same
+            // type, so the layouts and element values are identical.
+            unsafe { core::slice::from_raw_parts_mut(s.as_mut_ptr().cast::<T>(), s.len()) }
+        })
+    }
+
+    #[allow(unsafe_code)]
+    fn downcast_ref<F: Field, T: 'static>(s: &[F]) -> Option<&[T]> {
+        (TypeId::of::<F>() == TypeId::of::<T>()).then(|| {
+            // SAFETY: `TypeId` equality guarantees `F` and `T` are the same
+            // type, so the layouts and element values are identical.
+            unsafe { core::slice::from_raw_parts(s.as_ptr().cast::<T>(), s.len()) }
+        })
+    }
+
+    /// Elementwise in-place product: `lhs[i] *= rhs[i]`.
+    pub(crate) fn mul_slice<F: Field>(lhs: &mut [F], rhs: &[F]) {
+        if let Some(l) = downcast_mut::<F, pallas::Base>(lhs) {
+            let r = downcast_ref::<F, pallas::Base>(rhs).expect("same field type");
+            pasta_curves::fp_mul_slice(l, r);
+        } else if let Some(l) = downcast_mut::<F, vesta::Base>(lhs) {
+            let r = downcast_ref::<F, vesta::Base>(rhs).expect("same field type");
+            pasta_curves::fq_mul_slice(l, r);
+        } else {
+            for (l, r) in lhs.iter_mut().zip(rhs.iter()) {
+                *l *= *r;
+            }
+        }
+    }
+
+    /// Elementwise in-place squaring: `x[i] = x[i]^2`.
+    pub(crate) fn sqr_slice<F: Field>(x: &mut [F]) {
+        if let Some(x) = downcast_mut::<F, pallas::Base>(x) {
+            pasta_curves::fp_sqr_slice(x);
+        } else if let Some(x) = downcast_mut::<F, vesta::Base>(x) {
+            pasta_curves::fq_sqr_slice(x);
+        } else {
+            for v in x.iter_mut() {
+                *v = v.square();
+            }
+        }
+    }
+
+    /// Deferred-reduction inner product `sum_i a[i] * b[i]`, when a
+    /// specialized implementation exists for `F`.
+    pub(crate) fn inner_product<F: Field>(a: &[F], b: &[F]) -> Option<F> {
+        if let Some(a) = downcast_ref::<F, pallas::Base>(a) {
+            let b = downcast_ref::<F, pallas::Base>(b).expect("same field type");
+            let out = pasta_curves::fp_inner_product(a, b);
+            downcast_ref::<pallas::Base, F>(core::slice::from_ref(&out)).map(|s| s[0])
+        } else if let Some(a) = downcast_ref::<F, vesta::Base>(a) {
+            let b = downcast_ref::<F, vesta::Base>(b).expect("same field type");
+            let out = pasta_curves::fq_inner_product(a, b);
+            downcast_ref::<vesta::Base, F>(core::slice::from_ref(&out)).map(|s| s[0])
+        } else {
+            None
+        }
+    }
+
+    /// Elementwise in-place scaling by one factor: `x[i] *= k`.
+    pub(crate) fn scale_slice<F: Field>(x: &mut [F], k: &F) {
+        if let Some(x) = downcast_mut::<F, pallas::Base>(x) {
+            let k =
+                downcast_ref::<F, pallas::Base>(core::slice::from_ref(k)).expect("same field type");
+            pasta_curves::fp_scale_slice(x, &k[0]);
+        } else if let Some(x) = downcast_mut::<F, vesta::Base>(x) {
+            let k =
+                downcast_ref::<F, vesta::Base>(core::slice::from_ref(k)).expect("same field type");
+            pasta_curves::fq_scale_slice(x, &k[0]);
+        } else {
+            for v in x.iter_mut() {
+                *v *= *k;
+            }
+        }
+    }
+}
 
 /// This represents an element of a group with basic operations that can be
 /// performed. This allows an FFT implementation (for example) to operate
@@ -87,22 +176,16 @@ impl<C: CurveAffine> Bucket<C> {
     fn add_assign(&mut self, other: C) {
         *self = match *self {
             Bucket::None => Bucket::Affine(other),
-            Bucket::Affine(a) => Bucket::Projective(a + other),
-            Bucket::Projective(mut a) => {
-                a += other;
-                Bucket::Projective(a)
-            }
+            Bucket::Affine(a) => Bucket::Projective(a.to_curve().add_mixed_vartime(&other)),
+            Bucket::Projective(a) => Bucket::Projective(a.add_mixed_vartime(&other)),
         }
     }
 
-    fn add(self, mut other: C::Curve) -> C::Curve {
+    fn add(self, other: C::Curve) -> C::Curve {
         match self {
             Bucket::None => other,
-            Bucket::Affine(a) => {
-                other += a;
-                other
-            }
-            Bucket::Projective(a) => other + &a,
+            Bucket::Affine(a) => other.add_mixed_vartime(&a),
+            Bucket::Projective(a) => other.add_vartime(&a),
         }
     }
 }
@@ -210,7 +293,7 @@ impl<C: CurveAffine> BoothBuckets<C> {
         let mut sum = C::Curve::identity();
         self.coeffs.iter().rev().for_each(|b| {
             sum = b.add(sum);
-            acc += sum;
+            acc = acc.add_vartime(&sum);
         });
         acc
     }
@@ -231,13 +314,92 @@ pub fn small_multiexp<C: CurveAffine>(coeffs: &[C::Scalar], bases: &[C]) -> C::C
             for coeff_idx in 0..coeffs.len() {
                 let byte = coeffs[coeff_idx].as_ref()[byte_idx];
                 if ((byte >> bit_idx) & 1) != 0 {
-                    acc += bases[coeff_idx];
+                    acc = acc.add_mixed_vartime(&bases[coeff_idx]);
                 }
             }
         }
     }
 
     acc
+}
+
+/// The Booth window width used by [`linear_combination_batch_vartime`]:
+/// digit magnitudes are at most `2^(width - 1)`, so each base needs that
+/// many precomputed multiples.
+const LINEAR_COMBINATION_WINDOW_BITS: usize = 4;
+const LINEAR_COMBINATION_TABLE_LEN: usize = 1 << (LINEAR_COMBINATION_WINDOW_BITS - 1);
+
+/// Computes `count` independent linear combinations sharing one scalar
+/// vector: `output[i] = sum_b scalars[b] * base[b * count + i]`.
+///
+/// The scalars' Booth recodings and the window doubling schedule are shared
+/// across all outputs (a joint Straus evaluation per output), so each base
+/// point costs a handful of additions rather than a full scalar
+/// multiplication. Scalars are public (Fiat-Shamir challenges), so
+/// variable-time evaluation is appropriate.
+pub(crate) fn linear_combination_batch_vartime<C: CurveAffine>(
+    scalars: &[C::Scalar],
+    base: &[C],
+    count: usize,
+) -> Vec<C> {
+    assert_eq!(base.len(), scalars.len() * count);
+    let reprs = scalars.iter().map(PrimeField::to_repr).collect::<Vec<_>>();
+    let windows = booth_window_count(&reprs, LINEAR_COMBINATION_WINDOW_BITS);
+
+    let chunk_size = count.div_ceil(multicore::current_num_threads());
+    let mut projective = vec![C::Curve::identity(); count];
+    multicore::scope(|scope| {
+        for (chunk_index, out) in projective.chunks_mut(chunk_size).enumerate() {
+            let start = chunk_index * chunk_size;
+            let reprs = &reprs;
+            scope.spawn(move |_| {
+                // Precompute [P, 2P, ..., 2^(w-1) P] for every base in the
+                // chunk, batch-normalized so window additions are mixed.
+                let lanes = out.len();
+                let mut table_projective =
+                    Vec::with_capacity(reprs.len() * lanes * LINEAR_COMBINATION_TABLE_LEN);
+                for b in 0..reprs.len() {
+                    for i in 0..lanes {
+                        let point: C::Curve = base[b * count + start + i].into();
+                        let mut multiple = point;
+                        table_projective.push(multiple);
+                        for _ in 1..LINEAR_COMBINATION_TABLE_LEN {
+                            multiple = multiple.add_vartime(&point);
+                            table_projective.push(multiple);
+                        }
+                    }
+                }
+                let mut table = vec![C::identity(); table_projective.len()];
+                C::Curve::batch_normalize_vartime(&table_projective, &mut table);
+                drop(table_projective);
+
+                for w in (0..windows).rev() {
+                    if w != windows - 1 {
+                        for acc in out.iter_mut() {
+                            for _ in 0..LINEAR_COMBINATION_WINDOW_BITS {
+                                *acc = acc.double();
+                            }
+                        }
+                    }
+                    for (b, repr) in reprs.iter().enumerate() {
+                        let digit = booth_digit(repr.as_ref(), LINEAR_COMBINATION_WINDOW_BITS, w);
+                        if digit.magnitude == 0 {
+                            continue;
+                        }
+                        let row = &table[(b * lanes) * LINEAR_COMBINATION_TABLE_LEN..];
+                        for (i, acc) in out.iter_mut().enumerate() {
+                            let entry = row[i * LINEAR_COMBINATION_TABLE_LEN + digit.magnitude - 1];
+                            let entry = if digit.negative { -entry } else { entry };
+                            *acc = acc.add_mixed_vartime(&entry);
+                        }
+                    }
+                }
+            });
+        }
+    });
+    let mut affine = vec![C::identity(); count];
+    C::Curve::batch_normalize_vartime(&projective, &mut affine);
+    affine
 }
 
 /// Performs a multi-exponentiation operation.
@@ -787,6 +949,31 @@ fn test_multiexp() {
             .collect::<Vec<_>>();
 
         assert_multiexp_matches_naive(&coeffs, &bases);
+    }
+}
+
+#[test]
+fn test_linear_combination_batch_matches_naive() {
+    let mut rng = rng();
+    for (scalar_count, count) in [(1, 1), (1, 3), (2, 4), (8, 5), (16, 8), (4, 33)] {
+        let scalars = (0..scalar_count)
+            .map(|_| Fp::random(&mut rng))
+            .collect::<Vec<_>>();
+        let bases = (0..scalar_count * count)
+            .map(|_| EqAffine::from(Eq::random(&mut rng)))
+            .collect::<Vec<_>>();
+
+        let result = linear_combination_batch_vartime(&scalars, &bases, count);
+        assert_eq!(result.len(), count);
+        for (i, actual) in result.iter().enumerate() {
+            let expected = scalars
+                .iter()
+                .enumerate()
+                .fold(Eq::identity(), |acc, (b, scalar)| {
+                    acc + bases[b * count + i] * scalar
+                });
+            assert_eq!(Eq::from(*actual), expected);
+        }
     }
 }
 

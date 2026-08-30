@@ -16,9 +16,27 @@ use pasta_curves::{deferred::DeferredField, pallas, vesta};
 use super::{
     Basis, Coeff, EvaluationDomain, ExtendedLagrangeCoeff, LagrangeCoeff, Polynomial, Rotation,
 };
-use crate::multicore;
+use crate::{arithmetic::batch, multicore};
 
-const EVALUATOR_CHUNKS_PER_THREAD: usize = 8;
+const EVALUATOR_CHUNKS_PER_THREAD: usize = 1;
+
+/// Copies a rotated chunk's values into `output`.
+fn assign_rotated_chunk<F: Field>(output: &mut [F], chunk: &RotatedChunk<'_, F>) {
+    let n = chunk.first.len().min(output.len());
+    let (o1, o2) = output.split_at_mut(n);
+    o1.copy_from_slice(&chunk.first[..n]);
+    let m = chunk.second.len().min(o2.len());
+    o2[..m].copy_from_slice(&chunk.second[..m]);
+}
+
+/// Elementwise in-place product of `output` with a rotated chunk's values.
+fn mul_rotated_chunk<F: Field>(output: &mut [F], chunk: &RotatedChunk<'_, F>) {
+    let n = chunk.first.len().min(output.len());
+    let (o1, o2) = output.split_at_mut(n);
+    batch::mul_slice(o1, &chunk.first[..n]);
+    let m = chunk.second.len().min(o2.len());
+    batch::mul_slice(&mut o2[..m], &chunk.second[..m]);
+}
 
 /// Returns `(chunk_size, num_chunks)` suitable for processing the given
 /// polynomial length in the current parallelization environment.
@@ -1898,49 +1916,37 @@ impl<'poly, E, F: Field, B: Basis> Evaluator<'poly, E, F, B> {
                     {
                         let lhs = leaf_chunk(lhs, ctx, output.len());
                         let rhs = leaf_chunk(rhs, ctx, output.len());
-                        for ((output, lhs), rhs) in
-                            output.iter_mut().zip(lhs.iter()).zip(rhs.iter())
-                        {
-                            *output = *lhs * rhs;
-                        }
+                        assign_rotated_chunk(output, &lhs);
+                        mul_rotated_chunk(output, &rhs);
                         return;
                     }
                     if let EvaluationPlan::Poly(rhs) = b.as_ref() {
                         recurse_into(a, ctx, output, cache, scratch);
                         let rhs = leaf_chunk(rhs, ctx, output.len());
-                        for (lhs, rhs) in output.iter_mut().zip(rhs.iter()) {
-                            *lhs *= rhs;
-                        }
+                        mul_rotated_chunk(output, &rhs);
                         return;
                     }
                     if let EvaluationPlan::Poly(lhs) = a.as_ref() {
                         recurse_into(b, ctx, output, cache, scratch);
                         let lhs = leaf_chunk(lhs, ctx, output.len());
-                        for (rhs, lhs) in output.iter_mut().zip(lhs.iter()) {
-                            *rhs *= lhs;
-                        }
+                        mul_rotated_chunk(output, &lhs);
                         return;
                     }
 
                     recurse_into(a, ctx, output, cache, scratch);
                     let (rhs, rhs_scratch) = scratch.split_at_mut(output.len());
                     recurse_into(b, ctx, rhs, cache, rhs_scratch);
-                    for (lhs, rhs) in output.iter_mut().zip(rhs.iter()) {
-                        *lhs *= *rhs;
-                    }
+                    batch::mul_slice(output, rhs);
                 }
                 EvaluationPlan::Square(inner) => {
                     if let EvaluationPlan::Poly(leaf) = inner.as_ref() {
                         let chunk = leaf_chunk(leaf, ctx, output.len());
-                        for (output, value) in output.iter_mut().zip(chunk.iter()) {
-                            *output = value.square();
-                        }
+                        assign_rotated_chunk(output, &chunk);
+                        batch::sqr_slice(output);
                         return;
                     }
                     recurse_into(inner, ctx, output, cache, scratch);
-                    for value in output.iter_mut() {
-                        *value = value.square();
-                    }
+                    batch::sqr_slice(output);
                 }
                 EvaluationPlan::Scale(a, scalar) => {
                     if let EvaluationPlan::Poly(leaf) = a.as_ref() {
@@ -1973,9 +1979,7 @@ impl<'poly, E, F: Field, B: Basis> Evaluator<'poly, E, F, B> {
                     let (base_values, scratch) = scratch.split_at_mut(output.len());
                     recurse_into(base, ctx, base_values, cache, scratch);
                     for coefficient in remaining.iter().rev() {
-                        for (value, base) in output.iter_mut().zip(base_values.iter()) {
-                            *value *= base;
-                        }
+                        batch::mul_slice(output, base_values);
                         let coefficient = leaf_chunk(coefficient, ctx, output.len());
                         for (value, coefficient) in output.iter_mut().zip(coefficient.iter()) {
                             *value += coefficient;
