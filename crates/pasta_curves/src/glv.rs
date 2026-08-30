@@ -1640,7 +1640,6 @@ fn reduce_affine_buckets_inner<F: Field, const COMPLETE: bool>(
     let mut next_points = Vec::with_capacity((points.len() + bucket_count) / 2);
     let mut next_offsets = Vec::with_capacity(offsets.len());
     let mut pending = Vec::with_capacity(points.len() / 2);
-
     while offsets.windows(2).any(|range| range[1] - range[0] > 1) {
         next_points.clear();
         next_offsets.clear();
@@ -1653,11 +1652,12 @@ fn reduce_affine_buckets_inner<F: Field, const COMPLETE: bool>(
                 let left = pair[0];
                 let right = pair[1];
 
-                let (numerator, denominator) = if COMPLETE && left.x == right.x {
+                let dx = right.x - left.x;
+                let (numerator, denominator) = if COMPLETE && dx.is_zero_vartime() {
                     // Valid curve points with the same x-coordinate have the
                     // same or opposite y-coordinate. Handle both branches
                     // before asking the batch inverter to divide.
-                    if left.y != right.y || bool::from(left.y.is_zero()) {
+                    if !(right.y - left.y).is_zero_vartime() || left.y.is_zero_vartime() {
                         // The points are inverses, or this is a point of order
                         // two. Their sum is the identity, which is omitted.
                         continue;
@@ -1665,7 +1665,7 @@ fn reduce_affine_buckets_inner<F: Field, const COMPLETE: bool>(
                     let x_squared = left.x.square();
                     (x_squared.double() + x_squared, left.y.double())
                 } else {
-                    (right.y - left.y, right.x - left.x)
+                    (right.y - left.y, dx)
                 };
 
                 let output = next_points.len();

@@ -690,6 +690,11 @@ impl ff::Field for Fp {
         self.square_runtime()
     }
 
+    #[inline(always)]
+    fn is_zero_vartime(&self) -> bool {
+        self.0 == [0, 0, 0, 0]
+    }
+
     fn sqrt_ratio(num: &Self, div: &Self) -> (Choice, Self) {
         #[cfg(feature = "sqrt-table")]
         {
