@@ -549,6 +549,8 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
             1,
             1,
             &twiddles.extended_forward,
+            &twiddles.extended_forward_tables,
+            0,
             parallel_depth(),
         );
 

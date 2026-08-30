@@ -279,15 +279,6 @@ where
     // Hash verification key into transcript
     pk.vk.hash_into(transcript)?;
 
-    let stage_timing = std::env::var_os("HALO2_STAGE_TIMING").is_some();
-    let mut stage_start = std::time::Instant::now();
-    let mut stage = move |name: &str| {
-        if stage_timing {
-            eprintln!("  prover.{name}: {:?}", stage_start.elapsed());
-            stage_start = std::time::Instant::now();
-        }
-    };
-
     let domain = &pk.vk.domain;
     let mut meta = ConstraintSystem::default();
     let config = ConcreteCircuit::configure(&mut meta);
@@ -397,7 +388,6 @@ where
         &meta.constants,
         pk.floor_plan.as_ref(),
     )?;
-    stage("synthesize");
 
     // Consume randomness in circuit order before preparing the independent
     // commitments and polynomial transforms in parallel.
@@ -469,7 +459,6 @@ where
         }
         advice.push(advice_single);
     }
-    stage("advice_commit");
 
     // Create polynomial evaluator context for values.
     let mut value_evaluator = poly::new_evaluator(|| {});
@@ -620,7 +609,6 @@ where
         })
         .collect::<Result<Vec<_>, _>>()?;
     debug_assert!(prepared_lookups.next().is_none());
-    stage("lookup_permuted");
 
     // Sample beta challenge
     let beta: ChallengeBeta<_> = transcript.squeeze_challenge_scalar();
@@ -682,7 +670,6 @@ where
                 })
                 .collect::<Result<Vec<_>, _>>()?
         };
-    stage("permutation_commit");
 
     let circuit_count = lookups.len();
     let mut lookup_product_tasks = Vec::with_capacity(circuit_count * lookup_count);
@@ -715,7 +702,6 @@ where
         })
         .collect::<Result<Vec<_>, _>>()?;
     debug_assert!(prepared_lookup_products.next().is_none());
-    stage("lookup_commit");
 
     // Commit to the random polynomial that masks the folded quotient
     // evaluation in the multiopening argument.
@@ -813,7 +799,6 @@ where
         &mut rng,
         transcript,
     )?;
-    stage("quotient");
 
     let x: ChallengeX<_> = transcript.squeeze_challenge_scalar();
     let xn = x.pow([params.n, 0, 0, 0]);
@@ -901,7 +886,6 @@ where
             .expect("one result is returned for every initial evaluation query");
         transcript.write_scalar(evaluation)?;
     }
-    stage("evals");
 
     let vanishing = vanishing.evaluate(
         xn,
@@ -985,7 +969,6 @@ where
 
     let result =
         multiopen::create_proof(params, rng, transcript, instances).map_err(|_| Error::Opening);
-    stage("multiopen");
     result
 }
 
