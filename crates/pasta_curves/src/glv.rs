@@ -1363,7 +1363,11 @@ const BATCH_INVERSION_LANES: usize = 2;
 ///
 /// Each `output` identifies the slot containing the addition's left operand.
 /// The outputs must be distinct. Returns `None` if the product of the
-/// denominators is zero, allowing [`try_multiexp`] to use the generic MSM.
+/// denominators is zero. In that case, this function has not written to
+/// `points`: the prefix pass changes only disposable inversion scratch, and
+/// the output pass starts only after the product is successfully inverted.
+/// [`reduce_affine_buckets`] combines this failure-atomic behavior with
+/// separate level staging before it retries an exceptional level.
 fn batch_invert_and_add<F: Field>(
     additions: &mut [PendingAffineAddition<F>],
     points: &mut [AffinePoint<F>],
@@ -1382,7 +1386,11 @@ fn batch_invert_and_add<F: Field>(
         }
     }
 
-    // Invert both lane products with one inversion.
+    // Invert both lane products with one inversion. A field has no zero
+    // divisors, so this product is zero exactly when at least one affine
+    // denominator is zero. No output point has been written yet; `?` therefore
+    // makes failure atomic with respect to `points`. Writes to
+    // `inversion_scratch` are discarded by the caller on failure.
     let product = lane_products[0] * lane_products[1];
     // This MSM is already variable-time with respect to scalar digits; batch
     // inversion does not provide a constant-time guarantee.
@@ -1483,9 +1491,22 @@ where
 /// Reduces every affine bucket through shared Montgomery batch inversions.
 ///
 /// `offsets` partitions `points` into one contiguous range per bucket. At
-/// each tree level, all independent additions share one inversion. Identity,
-/// doubling, and inverse pairs are handled explicitly because affine formulas
-/// have exceptional cases.
+/// each tree level, all independent additions share one inversion. The normal
+/// route uses incomplete chord additions without per-pair coordinate checks;
+/// a zero batch product restarts that level with complete handling for
+/// identity, doubling, and inverse pairs.
+///
+/// For valid points on a short-Weierstrass curve over an odd-prime field,
+/// equal x-coordinates imply equal or opposite y-coordinates. Thus the only
+/// zero-denominator cases omitted by the incomplete chord formula are a
+/// doubling and an inverse pair. The latter includes the y = 0 overlap, which
+/// is a point of order two and sums with itself to the identity.
+///
+/// Each level is built in `next_points` and `next_offsets`, while `points` and
+/// `offsets` continue to hold its unchanged inputs. The vectors are swapped
+/// only after every addition succeeds. An exceptional incomplete level can
+/// therefore discard its staging and safely retry the same inputs with the
+/// complete formulas.
 ///
 /// # Invariants
 ///
@@ -1500,16 +1521,26 @@ where
 /// buckets. The function is generic over the field only for reuse between
 /// [`crate::Fp`] and [`crate::Fq`].
 fn reduce_affine_buckets<F: Field>(
+    points: Vec<AffinePoint<F>>,
+    offsets: Vec<usize>,
+) -> Option<Vec<Option<AffinePoint<F>>>> {
+    reduce_affine_buckets_inner::<F, false>(points, offsets)
+}
+
+fn reduce_affine_buckets_inner<F: Field, const COMPLETE: bool>(
     mut points: Vec<AffinePoint<F>>,
     mut offsets: Vec<usize>,
 ) -> Option<Vec<Option<AffinePoint<F>>>> {
     debug_assert!(!offsets.is_empty());
     let bucket_count = offsets.len() - 1;
+    let mut next_points = Vec::with_capacity((points.len() + bucket_count) / 2);
+    let mut next_offsets = Vec::with_capacity(offsets.len());
+    let mut pending = Vec::with_capacity(points.len() / 2);
 
     while offsets.windows(2).any(|range| range[1] - range[0] > 1) {
-        let mut next_points = Vec::with_capacity((points.len() + bucket_count) / 2);
-        let mut next_offsets = Vec::with_capacity(offsets.len());
-        let mut pending = Vec::with_capacity(points.len() / 2);
+        next_points.clear();
+        next_offsets.clear();
+        pending.clear();
         next_offsets.push(0);
 
         for range in offsets.windows(2) {
@@ -1518,7 +1549,10 @@ fn reduce_affine_buckets<F: Field>(
                 let left = pair[0];
                 let right = pair[1];
 
-                let (numerator, denominator) = if left.x == right.x {
+                let (numerator, denominator) = if COMPLETE && left.x == right.x {
+                    // Valid curve points with the same x-coordinate have the
+                    // same or opposite y-coordinate. Handle both branches
+                    // before asking the batch inverter to divide.
                     if left.y != right.y || bool::from(left.y.is_zero()) {
                         // The points are inverses, or this is a point of order
                         // two. Their sum is the identity, which is omitted.
@@ -1549,10 +1583,26 @@ fn reduce_affine_buckets<F: Field>(
             next_offsets.push(next_points.len());
         }
 
-        batch_invert_and_add(&mut pending, &mut next_points)?;
+        if batch_invert_and_add(&mut pending, &mut next_points).is_none() {
+            if !COMPLETE {
+                // At least one incomplete chord had equal x-coordinates. The
+                // failed batch has not overwritten any staged point, and the
+                // source vectors are not swapped until success, so `points`
+                // and `offsets` are still the exact inputs to this level.
+                // Retry them and keep complete formulas enabled for every
+                // remaining level; this prevents a later exceptional pair
+                // from entering an incomplete formula too.
+                return reduce_affine_buckets_inner::<F, true>(points, offsets);
+            }
+            // Complete formulas cannot produce a zero denominator under the
+            // invariants above. If the guard nevertheless fails, propagate
+            // `None` so the verifier caller uses the generic MSM instead of a
+            // potentially incomplete result.
+            return None;
+        }
 
-        points = next_points;
-        offsets = next_offsets;
+        core::mem::swap(&mut points, &mut next_points);
+        core::mem::swap(&mut offsets, &mut next_offsets);
     }
 
     let mut buckets = alloc::vec![None; bucket_count];
@@ -3844,6 +3894,21 @@ mod tests {
         );
     }
 
+    fn duplicate_base_multiexp_matches_expected<C: GlvParams>() {
+        let terms = VERIFIER_MULTIEXP_SIZES[0];
+        let scalar = scalars::<C::ScalarExt>(1)
+            .next()
+            .expect("the deterministic scalar corpus is nonempty");
+        let msm_scalars = alloc::vec![scalar; terms];
+        let bases = alloc::vec![C::generator().to_affine(); terms];
+        let expected =
+            C::generator() * (scalar * C::ScalarExt::from(u64::try_from(terms).unwrap()));
+
+        let actual = try_multiexp::<C>(&msm_scalars, &bases)
+            .expect("a verifier-sized duplicate-base MSM must use the optimized path");
+        assert_eq!(actual, expected);
+    }
+
     fn strauss_multiexp_matches_expected<C: GlvParams>() {
         const TERM_COUNTS: [usize; 10] = [0, 1, 2, 3, 8, 16, 32, 64, 66, 256];
 
@@ -5204,26 +5269,11 @@ mod tests {
         }
     }
 
-    fn batch_affine_buckets_match_native<C: GlvParams>() {
-        let generator = C::generator();
-        let two = generator.double();
-        let three = two + generator;
-        let four = three + generator;
-        let five = four + generator;
-        let source = [
-            Vec::new(),
-            alloc::vec![generator],
-            alloc::vec![generator, generator],
-            alloc::vec![generator, -generator],
-            alloc::vec![generator, two, three],
-            alloc::vec![generator, two, -three],
-            alloc::vec![generator, two, three, four, five],
-        ];
-
+    fn assert_batch_affine_buckets_match_native<C: GlvParams>(case: &str, source: &[Vec<C>]) {
         let mut points = Vec::new();
         let mut offsets = Vec::with_capacity(source.len() + 1);
         offsets.push(0);
-        for bucket in &source {
+        for bucket in source {
             for point in bucket {
                 let affine = C::AffineExt::from(*point);
                 let (x, y) = C::affine_xy(&affine);
@@ -5233,7 +5283,7 @@ mod tests {
         }
 
         let reduced = reduce_affine_buckets(points, offsets)
-            .expect("valid curve points have invertible affine denominators");
+            .unwrap_or_else(|| panic!("valid curve points must reduce in case {case}"));
         assert_eq!(reduced.len(), source.len());
         for (actual, bucket) in reduced.into_iter().zip(source) {
             let actual = match actual {
@@ -5244,38 +5294,109 @@ mod tests {
                 )),
                 None => C::identity(),
             };
-            let expected = bucket.into_iter().sum::<C>();
-            assert_eq!(actual, expected);
+            let expected = bucket.iter().copied().sum::<C>();
+            assert_eq!(actual, expected, "affine reduction mismatch in case {case}");
         }
     }
 
-    fn batch_inversion_rejects_zero_denominator<F: Field>() {
-        let mut additions = [F::ONE, F::ZERO, F::ONE.double()]
-            .into_iter()
-            .enumerate()
-            .map(|(output, denominator)| PendingAffineAddition {
-                output,
-                x_sum: F::ZERO,
-                numerator: F::ZERO,
-                denominator,
-                inversion_scratch: F::ZERO,
-            })
-            .collect::<Vec<_>>();
-        let mut points = alloc::vec![
-            AffinePoint {
-                x: F::ZERO,
-                y: F::ZERO,
-            };
-            additions.len()
+    fn batch_affine_buckets_match_native<C: GlvParams>() {
+        let generator = C::generator();
+        let two = generator.double();
+        let three = two + generator;
+        let four = three + generator;
+        let five = four + generator;
+        let cases = [
+            ("empty bucket", alloc::vec![Vec::new()]),
+            ("singleton bucket", alloc::vec![alloc::vec![generator]]),
+            (
+                "first-level doubling",
+                alloc::vec![alloc::vec![generator, generator]],
+            ),
+            (
+                "first-level inverse pair",
+                alloc::vec![alloc::vec![generator, -generator]],
+            ),
+            // The first level adds G + 2G, then pairs the resulting 3G
+            // with the carried 3G. The fallback therefore first occurs at
+            // the second level, after the first level has been committed.
+            (
+                "second-level doubling",
+                alloc::vec![alloc::vec![generator, two, three]],
+            ),
+            // As above, but the carried point is -3G, so the second-level
+            // exceptional pair cancels to the identity.
+            (
+                "second-level inverse pair",
+                alloc::vec![alloc::vec![generator, two, -three]],
+            ),
+            (
+                "odd bucket",
+                alloc::vec![alloc::vec![generator, two, three, four, five]],
+            ),
+            (
+                "one exceptional pair in a shared batch",
+                alloc::vec![
+                    Vec::new(),
+                    alloc::vec![generator],
+                    alloc::vec![generator, two],
+                    alloc::vec![generator, generator],
+                    alloc::vec![three, four, five],
+                ],
+            ),
         ];
 
-        assert!(batch_invert_and_add(&mut additions, &mut points).is_none());
+        for (case, source) in cases {
+            assert_batch_affine_buckets_match_native::<C>(case, &source);
+        }
+    }
+
+    fn batch_inversion_zero_denominator_is_failure_atomic_for<F: Field>() {
+        let cases = [
+            ("single first lane", alloc::vec![F::ZERO]),
+            ("first lane", alloc::vec![F::ZERO, F::ONE]),
+            ("second lane", alloc::vec![F::ONE, F::ZERO]),
+            (
+                "odd trailing first lane",
+                alloc::vec![F::ONE, F::ONE, F::ZERO],
+            ),
+        ];
+
+        for (case, denominators) in cases {
+            let mut additions = denominators
+                .into_iter()
+                .enumerate()
+                .map(|(output, denominator)| PendingAffineAddition {
+                    output,
+                    x_sum: F::ZERO,
+                    numerator: F::ZERO,
+                    denominator,
+                    inversion_scratch: F::ZERO,
+                })
+                .collect::<Vec<_>>();
+            let mut points = alloc::vec![
+                AffinePoint {
+                    x: F::ONE,
+                    y: F::ONE,
+                };
+                additions.len()
+            ];
+            let original_points = points.clone();
+
+            assert!(
+                batch_invert_and_add(&mut additions, &mut points).is_none(),
+                "zero denominator was accepted in case {case}"
+            );
+            for (actual, original) in points.iter().zip(original_points) {
+                assert_eq!(actual.x, original.x, "x changed in case {case}");
+                assert_eq!(actual.y, original.y, "y changed in case {case}");
+            }
+        }
     }
 
     #[test]
-    fn batch_inversion_zero_denominator_returns_none() {
-        batch_inversion_rejects_zero_denominator::<crate::Fp>();
-        batch_inversion_rejects_zero_denominator::<crate::Fq>();
+    fn batch_inversion_zero_denominator_is_failure_atomic() {
+        batch_inversion_zero_denominator_is_failure_atomic_for::<crate::Fp>();
+        batch_inversion_zero_denominator_is_failure_atomic_for::<crate::Fq>();
     }
 
     macro_rules! glv_tests {
@@ -5361,6 +5482,10 @@ mod tests {
                     optimized_multiexp_matches_expected::<$curve>();
                     #[cfg(feature = "multicore")]
                     optimized_multiexp_matches_expected_at_thread_counts::<$curve>();
+                }
+                #[test]
+                fn duplicate_base_multiexp() {
+                    duplicate_base_multiexp_matches_expected::<$curve>();
                 }
                 #[test]
                 fn serial_c10_multiexp() {
@@ -5557,6 +5682,15 @@ mod tests {
             })
         }
 
+        fn nonzero_small_multiple() -> impl Strategy<Value = i8> {
+            // A deliberately small signed range produces frequent duplicate
+            // and inverse points, so random bucket trees exercise exceptional
+            // affine additions instead of almost always taking the fast path.
+            (-8i8..=8).prop_filter("the affine reducer omits identities", |multiple| {
+                *multiple != 0
+            })
+        }
+
         macro_rules! glv_pbt {
             ($mod_name:ident, $curve:ty) => {
                 mod $mod_name {
@@ -5618,6 +5752,44 @@ mod tests {
                                 prop_assert_eq!(table.mul(&k), Table::new(p).mul(&k));
                                 prop_assert_eq!(table.mul(&k), *p * k);
                             }
+                        }
+
+                        /// Arbitrary collision-heavy bucket partitions agree
+                        /// with the native group law.
+                        #[test]
+                        fn batch_affine_buckets_match_native(
+                            multiples in proptest::collection::vec(
+                                proptest::collection::vec(
+                                    nonzero_small_multiple(),
+                                    0..16,
+                                ),
+                                1..8,
+                            ),
+                        ) {
+                            let generator = <$curve>::generator();
+                            let source: alloc::vec::Vec<alloc::vec::Vec<$curve>> = multiples
+                                .into_iter()
+                                .map(|bucket| {
+                                    bucket
+                                        .into_iter()
+                                        .map(|multiple| {
+                                            let point = generator
+                                                * Scalar::from(u64::from(
+                                                    multiple.unsigned_abs(),
+                                                ));
+                                            if multiple.is_negative() {
+                                                -point
+                                            } else {
+                                                point
+                                            }
+                                        })
+                                        .collect()
+                                })
+                                .collect();
+                            assert_batch_affine_buckets_match_native::<$curve>(
+                                "property-generated buckets",
+                                &source,
+                            );
                         }
 
                         /// For all k reused across points: hoisted decomposition == fresh.
