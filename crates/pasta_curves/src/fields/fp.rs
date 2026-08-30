@@ -306,6 +306,7 @@ impl Fp {
 
     /// Variable-time equality on the canonical Montgomery limbs. Only for
     /// paths that are already variable-time (e.g. the vartime multiexp).
+    #[cfg(feature = "glv")]
     #[inline(always)]
     pub(crate) fn eq_vartime(&self, other: &Self) -> bool {
         self.0 == other.0

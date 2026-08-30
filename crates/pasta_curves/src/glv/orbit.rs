@@ -311,6 +311,7 @@ impl OrbitParams {
     }
 
     /// The window width $c$ these parameters were built for.
+    #[cfg_attr(not(feature = "multicore"), allow(dead_code))]
     pub(super) fn width(&self) -> usize {
         self.window_bits
     }

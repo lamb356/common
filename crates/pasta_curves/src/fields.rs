@@ -191,6 +191,7 @@ macro_rules! batch_downcast {
 
 /// Elementwise in-place product for a generic field slice, dispatching to the
 /// batched `Fp`/`Fq` implementations when the types match.
+#[cfg(feature = "glv")]
 pub(crate) fn batch_mul_generic<F: ff::Field>(lhs: &mut [F], rhs: &[F]) {
     #[cfg(all(target_arch = "x86_64", feature = "ifma"))]
     {
@@ -204,6 +205,7 @@ pub(crate) fn batch_mul_generic<F: ff::Field>(lhs: &mut [F], rhs: &[F]) {
 
 /// Elementwise in-place squaring for a generic field slice, dispatching to
 /// the batched `Fp`/`Fq` implementations when the types match.
+#[cfg(feature = "glv")]
 pub(crate) fn batch_sqr_generic<F: ff::Field>(x: &mut [F]) {
     #[cfg(all(target_arch = "x86_64", feature = "ifma"))]
     {

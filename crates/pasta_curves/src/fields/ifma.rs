@@ -247,14 +247,17 @@ pub(crate) unsafe fn scale_slice_raw(
 
 /// Accumulator limbs for the unreduced dot-product kernel: ten radix-52
 /// product positions plus one limb for normalization carries.
+#[cfg(feature = "deferred")]
 const DOT_LIMBS: usize = 2 * LIMBS + 1;
 
 /// Batches between carry normalizations. Each batch adds at most ten 52-bit
 /// terms per accumulator limb, so `256 * 10 * 2^52 + 2^52 < 2^64` holds and
 /// no lane can overflow within a block.
+#[cfg(feature = "deferred")]
 const DOT_NORM_INTERVAL: usize = 256;
 
 /// Propagates each accumulator lane's bits above 52 into the next limb.
+#[cfg(feature = "deferred")]
 #[target_feature(enable = "avx512f")]
 fn dot_normalize(acc: &mut [__m512i; DOT_LIMBS]) {
     let mask = _mm512_set1_epi64(MASK52 as i64);
@@ -279,6 +282,7 @@ fn dot_normalize(acc: &mut [__m512i; DOT_LIMBS]) {
 /// Requires AVX-512F/IFMA/VL. `a` and `b` must each point to `len` contiguous
 /// `[u64; 4]` values. `len` must not exceed `2^38` (so the folded carries fit
 /// the top limb).
+#[cfg(feature = "deferred")]
 #[target_feature(enable = "avx512f,avx512ifma,avx512vl")]
 pub(crate) unsafe fn dot_slice_raw(
     a: *const u64,

@@ -543,7 +543,9 @@ fn joint_digits(mut a: i128, mut b: i128) -> ([u8; MAX_JOINT_DIGITS], usize) {
 const BATCH_AFFINE_MIN_POINTS: usize = 32;
 // This range is tuned for the k = 11 parameter generation used by Orchard.
 // Larger domains retain the point-major schedule above the measured range.
+#[cfg(feature = "multicore")]
 const TWIDDLE_MAJOR_MIN_CHUNK: usize = 16;
+#[cfg(feature = "multicore")]
 const TWIDDLE_MAJOR_MAX_CHUNK: usize = 2048;
 
 /// Montgomery-batched inversion for a nonempty slice of provably nonzero
