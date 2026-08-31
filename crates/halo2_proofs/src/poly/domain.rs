@@ -1141,6 +1141,7 @@ fn butterfly_chunk<F: Field>(
 }
 
 #[inline(always)]
+#[allow(clippy::too_many_arguments)]
 fn butterfly_chunk_pair<F: Field>(
     first_left: &mut [F],
     first_right: &mut [F],
