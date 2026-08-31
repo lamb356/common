@@ -88,7 +88,7 @@ use group::CurveAffine as _;
 use maybe_rayon::prelude::*;
 
 use crate::arithmetic::{CurveExt, mac, sbb};
-use crate::{pallas, vesta};
+use crate::{fields, pallas, vesta};
 
 #[cfg(any(feature = "multicore", feature = "orbits"))]
 mod orbit;
@@ -1394,6 +1394,14 @@ struct PendingAffineAddition<F> {
 /// Independent multiplication lanes used by batch inversion.
 const BATCH_INVERSION_LANES: usize = 2;
 
+/// Independent multiplication lanes used by the wide batch-inversion path,
+/// matching the AVX-512 IFMA vector width.
+const WIDE_INVERSION_LANES: usize = 8;
+
+/// Minimum batch size for the wide path; below this the fixed per-call lane
+/// setup outweighs the batched multiplications.
+const WIDE_INVERSION_THRESHOLD: usize = 32;
+
 /// Batch-inverts affine denominators and immediately finishes the additions.
 ///
 /// Each `output` identifies the slot containing the addition's left operand.
@@ -1419,6 +1427,9 @@ fn batch_invert_and_add<F: Field>(
         let y = slope * (left.x - x) - left.y;
         points[first.output] = AffinePoint { x, y };
         return Some(());
+    }
+    if additions.len() >= WIDE_INVERSION_THRESHOLD {
+        return batch_invert_and_add_wide(additions, points);
     }
 
     let (second, additions) = additions.split_first_mut().unwrap();
@@ -1513,6 +1524,98 @@ fn batch_invert_and_add<F: Field>(
         y: second_y,
     };
     Some(())
+}
+
+/// Wide-lane variant of [`batch_invert_and_add`]: eight independent
+/// multiplication chains sized to the AVX-512 IFMA vector width, with every
+/// eight-wide step performed as one batched slice multiplication.
+fn batch_invert_and_add_wide<F: Field>(
+    additions: &mut [PendingAffineAddition<F>],
+    points: &mut [AffinePoint<F>],
+) -> Option<()> {
+    const LANES: usize = WIDE_INVERSION_LANES;
+
+    // Forward pass: advance all prefix-product lanes one chunk at a time.
+    let mut lane_products = [F::ONE; LANES];
+    for chunk in additions.chunks_mut(LANES) {
+        let mut denominators = [F::ONE; LANES];
+        for (lane, addition) in chunk.iter_mut().enumerate() {
+            addition.inversion_scratch = lane_products[lane];
+            denominators[lane] = addition.denominator;
+        }
+        let lanes = chunk.len();
+        fields::batch_mul_generic(&mut lane_products[..lanes], &denominators[..lanes]);
+    }
+
+    // One inversion for every lane; per-lane inverses via prefix/suffix
+    // products of the lane totals.
+    let mut product = lane_products[0];
+    for lane_product in &lane_products[1..] {
+        product *= *lane_product;
+    }
+    // This MSM is already variable-time with respect to scalar digits; batch
+    // inversion does not provide a constant-time guarantee.
+    let product_inverse = Option::<F>::from(product.invert())?;
+    let mut prefix = [F::ONE; LANES];
+    for lane in 1..LANES {
+        prefix[lane] = prefix[lane - 1] * lane_products[lane - 1];
+    }
+    let mut lane_inverses = [F::ONE; LANES];
+    let mut suffix = product_inverse;
+    for lane in (0..LANES).rev() {
+        lane_inverses[lane] = prefix[lane] * suffix;
+        suffix *= lane_products[lane];
+    }
+
+    // Unwind the incomplete last chunk first, then the complete chunks in
+    // reverse. Lanes are independent chains, so intra-chunk order does not
+    // matter.
+    let split = (additions.len() / LANES) * LANES;
+    let (complete_chunks, tail) = additions.split_at(split);
+    if !tail.is_empty() {
+        finish_addition_chunk(tail, points, &mut lane_inverses);
+    }
+    for chunk in complete_chunks.chunks(LANES).rev() {
+        finish_addition_chunk(chunk, points, &mut lane_inverses);
+    }
+    Some(())
+}
+
+/// Finishes one chunk of pending affine additions: recovers each lane's
+/// denominator inverse, steps the lane inverse chains backward, and completes
+/// the chord additions with batched field operations.
+fn finish_addition_chunk<F: Field>(
+    chunk: &[PendingAffineAddition<F>],
+    points: &mut [AffinePoint<F>],
+    lane_inverses: &mut [F; WIDE_INVERSION_LANES],
+) {
+    const LANES: usize = WIDE_INVERSION_LANES;
+    let lanes = chunk.len();
+
+    let mut inverses = [F::ONE; LANES];
+    let mut denominators = [F::ONE; LANES];
+    let mut slopes = [F::ONE; LANES];
+    for (lane, addition) in chunk.iter().enumerate() {
+        inverses[lane] = addition.inversion_scratch;
+        denominators[lane] = addition.denominator;
+        slopes[lane] = addition.numerator;
+    }
+    fields::batch_mul_generic(&mut inverses[..lanes], &lane_inverses[..lanes]);
+    fields::batch_mul_generic(&mut lane_inverses[..lanes], &denominators[..lanes]);
+    fields::batch_mul_generic(&mut slopes[..lanes], &inverses[..lanes]);
+
+    let mut xs = slopes;
+    fields::batch_sqr_generic(&mut xs[..lanes]);
+    let mut chords = [F::ONE; LANES];
+    for (lane, addition) in chunk.iter().enumerate() {
+        xs[lane] -= addition.x_sum;
+        chords[lane] = points[addition.output].x - xs[lane];
+    }
+    fields::batch_mul_generic(&mut slopes[..lanes], &chords[..lanes]);
+    for (lane, addition) in chunk.iter().enumerate() {
+        let y = slopes[lane] - points[addition.output].y;
+        points[addition.output] = AffinePoint { x: xs[lane], y };
+    }
 }
 
 /// Collects the nonzero signed points assigned to one Booth window.

@@ -48,6 +48,23 @@ fn mul_by_inverse_power_of_two(
     ]
 }
 
+/// Elementwise in-place product for a generic field slice. A dispatch point
+/// for vectorized `Fp`/`Fq` implementations.
+#[cfg(feature = "glv")]
+pub(crate) fn batch_mul_generic<F: ff::Field>(lhs: &mut [F], rhs: &[F]) {
+    for (l, r) in lhs.iter_mut().zip(rhs.iter()) {
+        *l *= *r;
+    }
+}
+
+/// Elementwise in-place squaring for a generic field slice. A dispatch point
+/// for vectorized `Fp`/`Fq` implementations.
+#[cfg(feature = "glv")]
+pub(crate) fn batch_sqr_generic<F: ff::Field>(x: &mut [F]) {
+    for v in x.iter_mut() {
+        *v = v.square();
+    }
+}
 // Keep the assembly FFI exception contained within a private module whose
 // public interface consists only of safe wrappers.
 #[allow(unsafe_code)]
