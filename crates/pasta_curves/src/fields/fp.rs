@@ -588,6 +588,22 @@ impl DeferredField for Fp {
         acc.mul_accumulate(&a.0, &b.0);
     }
 
+    #[cfg(target_arch = "aarch64")]
+    #[cfg_attr(not(feature = "uninline-portable"), inline)]
+    fn inner_product(lhs: &[Fp], rhs: &[Fp]) -> Fp {
+        assert_eq!(lhs.len(), rhs.len());
+        let mut accumulator = Self::Accumulator::default();
+        let (lhs_pairs, lhs_remainder) = lhs.as_chunks::<2>();
+        let (rhs_pairs, rhs_remainder) = rhs.as_chunks::<2>();
+        for (lhs, rhs) in lhs_pairs.iter().zip(rhs_pairs) {
+            accumulator.mul_accumulate_pair(&lhs[0].0, &rhs[0].0, &lhs[1].0, &rhs[1].0);
+        }
+        for (lhs, rhs) in lhs_remainder.iter().zip(rhs_remainder) {
+            accumulator.mul_accumulate(&lhs.0, &rhs.0);
+        }
+        Self::reduce(accumulator)
+    }
+
     #[cfg_attr(not(feature = "uninline-portable"), inline)]
     fn square_accumulate(acc: &mut Self::Accumulator, a: &Fp) {
         acc.accumulate(a.square_unreduced());
