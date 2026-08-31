@@ -5,6 +5,7 @@ use super::super::{Coeff, Polynomial};
 use super::{Blind, Params};
 use crate::arithmetic::{
     CurveAffine, CurveExt, best_multiexp, compute_inner_product, eval_polynomial,
+    linear_combination_batch_vartime,
 };
 use crate::transcript::{EncodedChallenge, TranscriptWrite};
 
@@ -62,6 +63,42 @@ fn ipa_masking_commitment<C: CurveAffine>(
     bases.push(params.w);
 
     best_multiexp(&scalars, &bases)
+}
+
+/// How many leading IPA rounds defer the generator fold. During these
+/// rounds the folded generators ride through the round MSMs as
+/// per-generator challenge coefficients (an MSM point costs a handful of
+/// additions), which is far cheaper than the same-scalar multiplications
+/// an eager fold would need on a large vector; the deferred folds are then
+/// materialized all at once with [`linear_combination_batch_vartime`].
+const DEFERRED_FOLD_ROUNDS: u32 = 4;
+
+/// Gathers one side's MSM inputs for a deferred IPA round.
+///
+/// The virtual (fully folded) generator vector of length `2 * half` has
+/// entries `g'[v] = sum_{idx mod 2*half = v} s[idx] * base[idx]`, so the
+/// round commitment over its lo (`hi = false`) or hi (`hi = true`) half
+/// expands to an MSM over the original base with scalars
+/// `p_prime[v ± half] * s[idx]`.
+fn gather_deferred_round<C: CurveAffine>(
+    base: &[C],
+    s: &[C::Scalar],
+    p_prime: &[C::Scalar],
+    half: usize,
+    hi: bool,
+) -> (Vec<C::Scalar>, Vec<C>) {
+    let m = 2 * half;
+    let mut scalars = Vec::with_capacity(base.len() / 2);
+    let mut bases = Vec::with_capacity(base.len() / 2);
+    let p_offset = if hi { 0 } else { half };
+    for block_start in (0..base.len()).step_by(m) {
+        let offset = block_start + if hi { half } else { 0 };
+        for i in 0..half {
+            scalars.push(p_prime[p_offset + i] * s[offset + i]);
+            bases.push(base[offset + i]);
+        }
+    }
+    (scalars, bases)
 }
 
 fn ipa_round_multiexp<C: CurveAffine>(
@@ -205,9 +242,13 @@ pub fn create_proof<C: CurveAffine, E: EncodedChallenge<C>, R: Rng, T: Transcrip
         }
     }
 
-    // Initialize the vector `G'` from the URS. We'll be progressively collapsing
-    // this vector into smaller and smaller vectors until it is of length 1.
-    let mut g_prime = params.g.clone();
+    // The first `deferred_rounds` rounds don't fold the generator vector;
+    // instead each generator's accumulated challenge coefficient is tracked
+    // in `s` and applied inside the round MSMs, and the deferred folds are
+    // materialized all at once into `g_prime` afterwards.
+    let deferred_rounds = DEFERRED_FOLD_ROUNDS.min(params.k);
+    let mut s = vec![C::Scalar::ONE; params.n as usize];
+    let mut g_prime: Vec<C> = Vec::new();
 
     // Perform the inner product argument, round by round.
     for j in 0..params.k {
@@ -221,28 +262,43 @@ pub fn create_proof<C: CurveAffine, E: EncodedChallenge<C>, R: Rng, T: Transcrip
 
         // Include the U and W terms in each main MSM so their doublings are
         // shared with the round commitment.
-        let (l_j, r_j) = crate::multicore::join(
-            || {
-                ipa_round_multiexp(
-                    &p_prime[half..],
-                    &g_prime[0..half],
-                    value_l_j,
-                    l_j_randomness,
-                    params,
-                    z,
-                )
-            },
-            || {
-                ipa_round_multiexp(
-                    &p_prime[0..half],
-                    &g_prime[half..],
-                    value_r_j,
-                    r_j_randomness,
-                    params,
-                    z,
-                )
-            },
-        );
+        let (l_j, r_j) = if j < deferred_rounds {
+            crate::multicore::join(
+                || {
+                    let (scalars, bases) =
+                        gather_deferred_round(&params.g, &s, &p_prime, half, false);
+                    ipa_round_multiexp(&scalars, &bases, value_l_j, l_j_randomness, params, z)
+                },
+                || {
+                    let (scalars, bases) =
+                        gather_deferred_round(&params.g, &s, &p_prime, half, true);
+                    ipa_round_multiexp(&scalars, &bases, value_r_j, r_j_randomness, params, z)
+                },
+            )
+        } else {
+            crate::multicore::join(
+                || {
+                    ipa_round_multiexp(
+                        &p_prime[half..],
+                        &g_prime[0..half],
+                        value_l_j,
+                        l_j_randomness,
+                        params,
+                        z,
+                    )
+                },
+                || {
+                    ipa_round_multiexp(
+                        &p_prime[0..half],
+                        &g_prime[half..],
+                        value_r_j,
+                        r_j_randomness,
+                        params,
+                        z,
+                    )
+                },
+            )
+        };
         let l_j = l_j.to_affine();
         let r_j = r_j.to_affine();
 
@@ -253,19 +309,52 @@ pub fn create_proof<C: CurveAffine, E: EncodedChallenge<C>, R: Rng, T: Transcrip
         let u_j = *transcript.squeeze_challenge_scalar::<()>();
         let u_j_inv = u_j.invert().unwrap(); // TODO, bubble this up
 
-        // Collapse `p_prime` and `b`.
-        // TODO: parallelize
-        #[allow(clippy::assign_op_pattern)]
-        for i in 0..half {
-            p_prime[i] = p_prime[i] + &(p_prime[i + half] * &u_j_inv);
-            b[i] = b[i] + &(b[i + half] * &u_j);
-        }
+        // Collapse `p_prime`, `b`, and `G'` in parallel.
+        let (p_lo, p_hi) = p_prime.split_at_mut(half);
+        let (b_lo, b_hi) = b.split_at_mut(half);
+        crate::multicore::join(
+            || {
+                crate::multicore::join(
+                    || {
+                        #[allow(clippy::assign_op_pattern)]
+                        for (lo, hi) in p_lo.iter_mut().zip(p_hi.iter()) {
+                            *lo = *lo + &(*hi * &u_j_inv);
+                        }
+                    },
+                    || {
+                        #[allow(clippy::assign_op_pattern)]
+                        for (lo, hi) in b_lo.iter_mut().zip(b_hi.iter()) {
+                            *lo = *lo + &(*hi * &u_j);
+                        }
+                    },
+                )
+            },
+            || {
+                if j < deferred_rounds {
+                    // Fold in coefficient space: entries whose index sits in
+                    // the hi half of its virtual block pick up `u_j`.
+                    for block in s.chunks_mut(2 * half) {
+                        for coefficient in &mut block[half..] {
+                            *coefficient *= u_j;
+                        }
+                    }
+                    // Materialize the deferred folds once the eager rounds
+                    // take over (unless the argument is already finished).
+                    if j + 1 == deferred_rounds && j + 1 < params.k {
+                        g_prime = linear_combination_batch_vartime(
+                            &s.iter().step_by(half).copied().collect::<Vec<_>>(),
+                            &params.g,
+                            half,
+                        );
+                    }
+                } else {
+                    parallel_generator_collapse(&mut g_prime, u_j);
+                    g_prime.truncate(half);
+                }
+            },
+        );
         p_prime.truncate(half);
         b.truncate(half);
-
-        // Collapse `G'`
-        parallel_generator_collapse(&mut g_prime, u_j);
-        g_prime.truncate(half);
 
         // Update randomness (the synthetic blinding factor at the end)
         f += &(l_j_randomness * &u_j_inv);
@@ -304,7 +393,7 @@ fn parallel_generator_collapse<C: CurveAffine>(g: &mut [C], challenge: C::Scalar
                 for (scaled, g_lo) in scaled.iter_mut().zip(g_lo.iter()) {
                     *scaled += *g_lo;
                 }
-                C::Curve::batch_normalize(&scaled, g_lo);
+                <C::Curve as CurveExt>::batch_normalize_vartime(&scaled, g_lo);
             });
         }
     });

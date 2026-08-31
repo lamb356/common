@@ -234,6 +234,85 @@ pub fn small_multiexp<C: CurveAffine>(coeffs: &[C::Scalar], bases: &[C]) -> C::C
     acc
 }
 
+/// The Booth window width used by [`linear_combination_batch_vartime`]:
+/// digit magnitudes are at most `2^(width - 1)`, so each base needs that
+/// many precomputed multiples.
+const LINEAR_COMBINATION_WINDOW_BITS: usize = 4;
+const LINEAR_COMBINATION_TABLE_LEN: usize = 1 << (LINEAR_COMBINATION_WINDOW_BITS - 1);
+
+/// Computes `count` independent linear combinations sharing one scalar
+/// vector: `output[i] = sum_b scalars[b] * base[b * count + i]`.
+///
+/// The scalars' Booth recodings and the window doubling schedule are shared
+/// across all outputs (a joint Straus evaluation per output), so each base
+/// point costs a handful of additions rather than a full scalar
+/// multiplication. Scalars are public (Fiat-Shamir challenges), so
+/// variable-time evaluation is appropriate.
+pub(crate) fn linear_combination_batch_vartime<C: CurveAffine>(
+    scalars: &[C::Scalar],
+    base: &[C],
+    count: usize,
+) -> Vec<C> {
+    assert_eq!(base.len(), scalars.len() * count);
+    let reprs = scalars.iter().map(PrimeField::to_repr).collect::<Vec<_>>();
+    let windows = booth_window_count(&reprs, LINEAR_COMBINATION_WINDOW_BITS);
+
+    let chunk_size = count.div_ceil(multicore::current_num_threads());
+    let mut projective = vec![C::Curve::identity(); count];
+    multicore::scope(|scope| {
+        for (chunk_index, out) in projective.chunks_mut(chunk_size).enumerate() {
+            let start = chunk_index * chunk_size;
+            let reprs = &reprs;
+            scope.spawn(move |_| {
+                // Precompute [P, 2P, ..., 2^(w-1) P] for every base in the
+                // chunk, batch-normalized so window additions are mixed.
+                let lanes = out.len();
+                let mut table_projective =
+                    Vec::with_capacity(reprs.len() * lanes * LINEAR_COMBINATION_TABLE_LEN);
+                for b in 0..reprs.len() {
+                    for i in 0..lanes {
+                        let point: C::Curve = base[b * count + start + i].into();
+                        let mut multiple = point;
+                        table_projective.push(multiple);
+                        for _ in 1..LINEAR_COMBINATION_TABLE_LEN {
+                            multiple = multiple.add_vartime(&point);
+                            table_projective.push(multiple);
+                        }
+                    }
+                }
+                let mut table = vec![C::identity(); table_projective.len()];
+                C::Curve::batch_normalize_vartime(&table_projective, &mut table);
+                drop(table_projective);
+
+                for w in (0..windows).rev() {
+                    if w != windows - 1 {
+                        for acc in out.iter_mut() {
+                            for _ in 0..LINEAR_COMBINATION_WINDOW_BITS {
+                                *acc = acc.double_vartime();
+                            }
+                        }
+                    }
+                    for (b, repr) in reprs.iter().enumerate() {
+                        let digit = booth_digit(repr.as_ref(), LINEAR_COMBINATION_WINDOW_BITS, w);
+                        if digit.magnitude == 0 {
+                            continue;
+                        }
+                        let row = &table[(b * lanes) * LINEAR_COMBINATION_TABLE_LEN..];
+                        for (i, acc) in out.iter_mut().enumerate() {
+                            let entry = row[i * LINEAR_COMBINATION_TABLE_LEN + digit.magnitude - 1];
+                            let entry = if digit.negative { -entry } else { entry };
+                            *acc = acc.add_mixed_vartime(&entry);
+                        }
+                    }
+                }
+            });
+        }
+    });
+    let mut affine = vec![C::identity(); count];
+    C::Curve::batch_normalize_vartime(&projective, &mut affine);
+    affine
+}
+
 /// Performs a multi-exponentiation operation.
 ///
 /// This function will panic if coeffs and bases have a different length.
@@ -781,6 +860,31 @@ fn test_multiexp() {
             .collect::<Vec<_>>();
 
         assert_multiexp_matches_naive(&coeffs, &bases);
+    }
+}
+
+#[test]
+fn test_linear_combination_batch_matches_naive() {
+    let mut rng = rng();
+    for (scalar_count, count) in [(1, 1), (1, 3), (2, 4), (8, 5), (16, 8), (4, 33)] {
+        let scalars = (0..scalar_count)
+            .map(|_| Fp::random(&mut rng))
+            .collect::<Vec<_>>();
+        let bases = (0..scalar_count * count)
+            .map(|_| EqAffine::from(Eq::random(&mut rng)))
+            .collect::<Vec<_>>();
+
+        let result = linear_combination_batch_vartime(&scalars, &bases, count);
+        assert_eq!(result.len(), count);
+        for (i, actual) in result.iter().enumerate() {
+            let expected = scalars
+                .iter()
+                .enumerate()
+                .fold(Eq::identity(), |acc, (b, scalar)| {
+                    acc + bases[b * count + i] * scalar
+                });
+            assert_eq!(Eq::from(*actual), expected);
+        }
     }
 }
 
