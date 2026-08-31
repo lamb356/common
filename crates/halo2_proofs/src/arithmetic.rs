@@ -38,6 +38,34 @@ pub(crate) mod batch {
         })
     }
 
+    /// Elementwise in-place product: `lhs[i] *= rhs[i]`.
+    pub(crate) fn mul_slice<F: Field>(lhs: &mut [F], rhs: &[F]) {
+        if let Some(l) = downcast_mut::<F, pallas::Base>(lhs) {
+            let r = downcast_ref::<F, pallas::Base>(rhs).expect("same field type");
+            pasta_curves::fp_mul_slice(l, r);
+        } else if let Some(l) = downcast_mut::<F, vesta::Base>(lhs) {
+            let r = downcast_ref::<F, vesta::Base>(rhs).expect("same field type");
+            pasta_curves::fq_mul_slice(l, r);
+        } else {
+            for (l, r) in lhs.iter_mut().zip(rhs.iter()) {
+                *l *= *r;
+            }
+        }
+    }
+
+    /// Elementwise in-place squaring: `x[i] = x[i]^2`.
+    pub(crate) fn sqr_slice<F: Field>(x: &mut [F]) {
+        if let Some(x) = downcast_mut::<F, pallas::Base>(x) {
+            pasta_curves::fp_sqr_slice(x);
+        } else if let Some(x) = downcast_mut::<F, vesta::Base>(x) {
+            pasta_curves::fq_sqr_slice(x);
+        } else {
+            for v in x.iter_mut() {
+                *v = v.square();
+            }
+        }
+    }
+
     /// Deferred-reduction inner product `sum_i a[i] * b[i]`, when a
     /// specialized implementation exists for `F`.
     pub(crate) fn inner_product<F: Field>(a: &[F], b: &[F]) -> Option<F> {

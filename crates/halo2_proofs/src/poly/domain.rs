@@ -46,6 +46,8 @@ type PolynomialTransformBatch<F> = (
 pub(crate) struct ProvingKeyTwiddles<F> {
     base_inverse: Arc<[F]>,
     extended_forward: Arc<[F]>,
+    base_inverse_tables: Arc<[Vec<F>]>,
+    extended_forward_tables: Arc<[Vec<F>]>,
 }
 
 impl<F> fmt::Debug for ProvingKeyTwiddles<F> {
@@ -314,9 +316,16 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
 
     /// Builds the FFT twiddles retained by a proving key.
     pub(crate) fn proving_key_twiddles(&self) -> ProvingKeyTwiddles<F> {
+        let base_inverse = twiddle_table(self.omega_inv, 1 << self.k);
+        let extended_forward = twiddle_table(self.extended_omega, self.extended_len());
+        let base_inverse_tables = butterfly_twiddle_tables(&base_inverse, 1 << self.k);
+        let extended_forward_tables =
+            butterfly_twiddle_tables(&extended_forward, self.extended_len());
         ProvingKeyTwiddles {
-            base_inverse: Arc::from(twiddle_table(self.omega_inv, 1 << self.k)),
-            extended_forward: Arc::from(twiddle_table(self.extended_omega, self.extended_len())),
+            base_inverse: Arc::from(base_inverse),
+            extended_forward: Arc::from(extended_forward),
+            base_inverse_tables: Arc::from(base_inverse_tables),
+            extended_forward_tables: Arc::from(extended_forward_tables),
         }
     }
 
@@ -336,6 +345,8 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
             1,
             1,
             &twiddles.base_inverse,
+            &twiddles.base_inverse_tables,
+            0,
             parallel_depth(),
         );
         parallelize(&mut polynomial.values, |values, _| {
@@ -364,6 +375,7 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
             self.k,
             self.extended_k,
             &twiddles.extended_forward,
+            &twiddles.extended_forward_tables,
             parallel_depth(),
         );
 
@@ -417,6 +429,8 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
                 1,
                 1,
                 &twiddles.base_inverse,
+                &twiddles.base_inverse_tables,
+                0,
                 INNER_PARALLEL_DEPTH,
             );
             batch::scale_slice(&mut values, &self.ifft_divisor);
@@ -432,6 +446,7 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
                 self.k,
                 self.extended_k,
                 &twiddles.extended_forward,
+                &twiddles.extended_forward_tables,
                 INNER_PARALLEL_DEPTH,
             );
             let extended = Polynomial {
@@ -534,6 +549,8 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
             1,
             1,
             &twiddles.extended_forward,
+            &twiddles.extended_forward_tables,
+            0,
             parallel_depth(),
         );
 
@@ -595,6 +612,8 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
             1,
             1,
             &twiddles.extended_forward,
+            &twiddles.extended_forward_tables,
+            0,
             parallel_depth(),
         );
         polynomial.values[1..].reverse();
@@ -703,11 +722,13 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
         }
 
         let twiddles = twiddle_table(omega, extended_n);
+        let tables = butterfly_twiddle_tables(&twiddles, extended_n);
         Self::fft_zero_padded_with_twiddles(
             coefficients,
             log_n,
             extended_log_n,
             &twiddles,
+            &tables,
             parallel_depth(),
         );
     }
@@ -717,6 +738,7 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
         log_n: u32,
         extended_log_n: u32,
         twiddles: &[F],
+        tables: &[Vec<F>],
         parallel_depth: u32,
     ) {
         assert!(log_n <= extended_log_n);
@@ -775,7 +797,15 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
         // Each 2 * extension chunk contains the first retained stage. Continue
         // with the other log_n - 1 butterfly stages. A zero parallel depth
         // still traverses recursively to retain cache locality.
-        recursive_butterfly_after_prefix(&mut values, 2 * extension, 1, twiddles, parallel_depth);
+        recursive_butterfly_after_prefix(
+            &mut values,
+            2 * extension,
+            1,
+            twiddles,
+            tables,
+            0,
+            parallel_depth,
+        );
         *coefficients = values;
     }
 
@@ -934,11 +964,38 @@ fn bitreverse(value: usize, bits: u32) -> usize {
     }
 }
 
+/// Node half-lengths at or below this size use the strided scalar combine
+/// loop; larger nodes multiply their right half by a contiguous per-level
+/// twiddle table with the batched slice multiplier.
+const BUTTERFLY_BATCH_MIN_HALF: usize = 32;
+
+/// Builds contiguous per-level twiddle tables for the batched butterfly
+/// combine step.
+///
+/// Every node at recursion depth `d` of [`recursive_butterfly_after_prefix`]
+/// uses the same twiddles at stride `2^d`, so entry `d` gathers them once
+/// into a contiguous table of the node half-length (minus the unity
+/// twiddle). Levels whose nodes are at most [`BUTTERFLY_BATCH_MIN_HALF`]
+/// long are omitted and use the strided scalar loop.
+fn butterfly_twiddle_tables<F: Field>(twiddles: &[F], len: usize) -> Vec<Vec<F>> {
+    let mut tables = Vec::new();
+    let mut half = len / 2;
+    let mut chunk = 1;
+    while half > BUTTERFLY_BATCH_MIN_HALF {
+        tables.push((1..half).map(|index| twiddles[index * chunk]).collect());
+        half /= 2;
+        chunk *= 2;
+    }
+    tables
+}
+
 fn recursive_butterfly_after_prefix<F: Field>(
     values: &mut [F],
     completed_chunk_len: usize,
     twiddle_chunk: usize,
     twiddles: &[F],
+    tables: &[Vec<F>],
+    level: usize,
     parallel_depth: u32,
 ) {
     let len = values.len();
@@ -956,6 +1013,8 @@ fn recursive_butterfly_after_prefix<F: Field>(
                         completed_chunk_len,
                         twiddle_chunk * 2,
                         twiddles,
+                        tables,
+                        level + 1,
                         parallel_depth - 1,
                     )
                 },
@@ -965,6 +1024,8 @@ fn recursive_butterfly_after_prefix<F: Field>(
                         completed_chunk_len,
                         twiddle_chunk * 2,
                         twiddles,
+                        tables,
+                        level + 1,
                         parallel_depth - 1,
                     )
                 },
@@ -976,11 +1037,13 @@ fn recursive_butterfly_after_prefix<F: Field>(
                 completed_chunk_len,
                 twiddle_chunk * 2,
                 twiddles,
+                tables,
+                level + 1,
             );
         }
     }
 
-    butterfly_chunk(left, right, twiddle_chunk, twiddles);
+    butterfly_chunk(left, right, twiddle_chunk, twiddles, tables, level);
 }
 
 /// Recursively processes two equal-sized field FFT chunks together. The FFT
@@ -993,6 +1056,8 @@ fn recursive_butterfly_pair_after_prefix<F: Field>(
     completed_chunk_len: usize,
     twiddle_chunk: usize,
     twiddles: &[F],
+    tables: &[Vec<F>],
+    level: usize,
 ) {
     debug_assert_eq!(first.len(), second.len());
     let len = first.len();
@@ -1012,6 +1077,8 @@ fn recursive_butterfly_pair_after_prefix<F: Field>(
             completed_chunk_len,
             twiddle_chunk * 2,
             twiddles,
+            tables,
+            level + 1,
         );
         recursive_butterfly_pair_after_prefix(
             second_left,
@@ -1019,6 +1086,8 @@ fn recursive_butterfly_pair_after_prefix<F: Field>(
             completed_chunk_len,
             twiddle_chunk * 2,
             twiddles,
+            tables,
+            level + 1,
         );
     }
 
@@ -1029,6 +1098,8 @@ fn recursive_butterfly_pair_after_prefix<F: Field>(
         second_right,
         twiddle_chunk,
         twiddles,
+        tables,
+        level,
     );
 }
 
@@ -1038,6 +1109,8 @@ fn butterfly_chunk<F: Field>(
     right: &mut [F],
     twiddle_chunk: usize,
     twiddles: &[F],
+    tables: &[Vec<F>],
+    level: usize,
 ) {
     // Handle the unity twiddle without a field multiplication.
     let (first_left, left) = left.split_at_mut(1);
@@ -1047,12 +1120,23 @@ fn butterfly_chunk<F: Field>(
     first_left[0] += &t;
     first_right[0] -= &t;
 
-    for (index, (left, right)) in left.iter_mut().zip(right.iter_mut()).enumerate() {
-        let mut t = *right;
-        t *= &twiddles[(index + 1) * twiddle_chunk];
-        *right = *left;
-        *left += &t;
-        *right -= &t;
+    if let Some(table) = tables.get(level) {
+        debug_assert_eq!(table.len(), right.len());
+        batch::mul_slice(right, table);
+        for (left, right) in left.iter_mut().zip(right.iter_mut()) {
+            let t = *right;
+            *right = *left;
+            *left += &t;
+            *right -= &t;
+        }
+    } else {
+        for (index, (left, right)) in left.iter_mut().zip(right.iter_mut()).enumerate() {
+            let mut t = *right;
+            t *= &twiddles[(index + 1) * twiddle_chunk];
+            *right = *left;
+            *left += &t;
+            *right -= &t;
+        }
     }
 }
 
@@ -1064,6 +1148,8 @@ fn butterfly_chunk_pair<F: Field>(
     second_right: &mut [F],
     twiddle_chunk: usize,
     twiddles: &[F],
+    tables: &[Vec<F>],
+    level: usize,
 ) {
     debug_assert_eq!(first_left.len(), first_right.len());
     debug_assert_eq!(first_left.len(), second_left.len());
@@ -1082,6 +1168,27 @@ fn butterfly_chunk_pair<F: Field>(
     second_a[0] += &second_t;
     first_b[0] -= &first_t;
     second_b[0] -= &second_t;
+
+    if let Some(table) = tables.get(level) {
+        debug_assert_eq!(table.len(), first_right.len());
+        batch::mul_slice(first_right, table);
+        batch::mul_slice(second_right, table);
+        for ((first_left, first_right), (second_left, second_right)) in first_left
+            .iter_mut()
+            .zip(first_right.iter_mut())
+            .zip(second_left.iter_mut().zip(second_right.iter_mut()))
+        {
+            let first_t = *first_right;
+            let second_t = *second_right;
+            *first_right = *first_left;
+            *second_right = *second_left;
+            *first_left += &first_t;
+            *second_left += &second_t;
+            *first_right -= &first_t;
+            *second_right -= &second_t;
+        }
+        return;
+    }
 
     for (index, ((first_left, first_right), (second_left, second_right))) in first_left
         .iter_mut()
