@@ -71,7 +71,7 @@ fn ipa_masking_commitment<C: CurveAffine>(
 /// additions), which is far cheaper than the same-scalar multiplications
 /// an eager fold would need on a large vector; the deferred folds are then
 /// materialized all at once with [`linear_combination_batch_vartime`].
-const DEFERRED_FOLD_ROUNDS: u32 = 4;
+const DEFERRED_FOLD_ROUNDS: u32 = 3;
 
 /// Gathers one side's MSM inputs for a deferred IPA round.
 ///
