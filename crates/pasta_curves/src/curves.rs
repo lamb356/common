@@ -285,7 +285,16 @@ macro_rules! new_curve_impl {
                 const TWO_LANE_MIN: usize = 32;
 
                 if p.len() < TWO_LANE_MIN {
-                    let mut acc = $base::one();
+                    let Some((first_p, p)) = p.split_first() else {
+                        return;
+                    };
+                    let (first_q, q) = q.split_first_mut().unwrap();
+                    let first_skip = first_p.is_identity();
+                    let mut acc = $base::conditional_select(
+                        &first_p.z,
+                        &$base::one(),
+                        first_skip,
+                    );
                     for (p, q) in p.iter().zip(q.iter_mut()) {
                         // We use the `x` field of $name_affine to store the
                         // product of previous z-coordinates seen.
@@ -317,6 +326,20 @@ macro_rules! new_curve_impl {
 
                         *q = $name_affine::conditional_select(&q, &$name_affine::identity(), skip);
                     }
+
+                    // The first prefix is one, and the accumulator is dead
+                    // after producing its inverse, so both multiplications
+                    // at this endpoint can be omitted.
+                    let tmp = acc;
+                    let tmp2 = Field::square(&tmp);
+                    let tmp3 = tmp2 * tmp;
+                    first_q.x = first_p.x * tmp2;
+                    first_q.y = first_p.y * tmp3;
+                    *first_q = $name_affine::conditional_select(
+                        &first_q,
+                        &$name_affine::identity(),
+                        first_skip,
+                    );
                     return;
                 }
 
@@ -325,7 +348,13 @@ macro_rules! new_curve_impl {
                 // chains (throughput-bound instead of latency-bound), joined
                 // around a single shared field inversion. Identity handling is
                 // unchanged from the single-chain path above.
-                let mut acc = [$base::one(); 2];
+                let (first_p, p) = p.split_at(2);
+                let (first_q, q) = q.split_at_mut(2);
+                let first_skip = [first_p[0].is_identity(), first_p[1].is_identity()];
+                let mut acc = [
+                    $base::conditional_select(&first_p[0].z, &$base::one(), first_skip[0]),
+                    $base::conditional_select(&first_p[1].z, &$base::one(), first_skip[1]),
+                ];
                 for (i, (p, q)) in p.iter().zip(q.iter_mut()).enumerate() {
                     q.x = acc[i & 1];
                     acc[i & 1] = $base::conditional_select(
@@ -343,21 +372,36 @@ macro_rules! new_curve_impl {
                 for (i, (p, q)) in p.iter().zip(q.iter_mut()).enumerate().rev() {
                     let lane = i & 1;
                     let skip = p.is_identity();
-
-                    // Compute tmp = 1/z
                     let tmp = q.x * acc[lane];
-
-                    // Cancel out z-coordinate in denominator of the lane seed
-                    acc[lane] = $base::conditional_select(&(acc[lane] * p.z), &acc[lane], skip);
-
-                    // Set the coordinates to the correct value
+                    acc[lane] = $base::conditional_select(
+                        &(acc[lane] * p.z),
+                        &acc[lane],
+                        skip,
+                    );
                     let tmp2 = Field::square(&tmp);
                     let tmp3 = tmp2 * tmp;
-
                     q.x = p.x * tmp2;
                     q.y = p.y * tmp3;
+                    *q = $name_affine::conditional_select(
+                        &q,
+                        &$name_affine::identity(),
+                        skip,
+                    );
+                }
 
-                    *q = $name_affine::conditional_select(&q, &$name_affine::identity(), skip);
+                for lane in 0..2 {
+                    // The first prefix in each lane is one, and its final
+                    // accumulator update is dead.
+                    let tmp = acc[lane];
+                    let tmp2 = Field::square(&tmp);
+                    let tmp3 = tmp2 * tmp;
+                    first_q[lane].x = first_p[lane].x * tmp2;
+                    first_q[lane].y = first_p[lane].y * tmp3;
+                    first_q[lane] = $name_affine::conditional_select(
+                        &first_q[lane],
+                        &$name_affine::identity(),
+                        first_skip[lane],
+                    );
                 }
             }
 
@@ -1410,7 +1454,8 @@ mod batch_normalize_two_lane_tests {
     #[test]
     fn matches_to_affine_with_identities() {
         // Cover the single-chain path (< 32), the crossover, and the
-        // two-lane path, with identities sprinkled at even and odd indices.
+        // two-lane path, with identities at every combination of peeled
+        // heads and sprinkled at even and odd interior indices.
         let mut rng_state = 0x9e3779b97f4a7c15u64;
         let mut next = move || {
             rng_state ^= rng_state << 13;
@@ -1418,21 +1463,36 @@ mod batch_normalize_two_lane_tests {
             rng_state ^= rng_state << 17;
             rng_state
         };
-        for n in [0usize, 1, 2, 31, 32, 33, 64, 257, 512] {
-            let points: Vec<Ep> = (0..n)
-                .map(|i| {
-                    if i % 7 == 3 || i % 7 == 4 {
-                        Ep::identity()
-                    } else {
-                        Ep::generator() * Fq::from(next() | 1)
-                    }
-                })
-                .collect();
+        for n in [0usize, 1, 2, 31, 32, 33, 64, 65, 128, 257, 512] {
+            for head_identity_mask in 0u8..4 {
+                let points: Vec<Ep> = (0..n)
+                    .map(|i| {
+                        let head_is_identity = i < 2 && head_identity_mask & (1 << i) != 0;
+                        if head_is_identity || i % 7 == 3 || i % 7 == 4 {
+                            Ep::identity()
+                        } else {
+                            Ep::generator() * Fq::from(next() | 1)
+                        }
+                    })
+                    .collect();
+                let mut affine = vec![EpAffine::identity(); n];
+                Ep::batch_normalize(&points, &mut affine);
+                for (i, (p, a)) in points.iter().zip(&affine).enumerate() {
+                    assert_eq!(
+                        p.to_affine(),
+                        *a,
+                        "n = {n}, head mask = {head_identity_mask:#04b}, index = {i}"
+                    );
+                }
+            }
+
+            let points = vec![Ep::identity(); n];
             let mut affine = vec![EpAffine::identity(); n];
             Ep::batch_normalize(&points, &mut affine);
-            for (i, (p, a)) in points.iter().zip(&affine).enumerate() {
-                assert_eq!(p.to_affine(), *a, "n = {}, index {}", n, i);
-            }
+            assert!(
+                affine.iter().all(|point| point == &EpAffine::identity()),
+                "all-identity batch of length {n}"
+            );
         }
     }
 }
